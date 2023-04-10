@@ -11,10 +11,13 @@ import {
 } from "@coral-xyz/anchor";
 import NodeWallet from "@coral-xyz/anchor/dist/cjs/nodewallet";
 
+import * as dotenv from "dotenv";
+dotenv.config();
+
 const app = express();
 const port = process.env.PORT || 3333;
 
-const HELIUS_URL = `https://rpc.helius.xyz/?api-key=${process.env.HELIUS_API_KEY}}`;
+const HELIUS_URL = `https://rpc.helius.xyz/?api-key=${process.env.HELIUS_API_KEY}`;
 const SOLANA_RPC_URL = "https://api.mainnet-beta.solana.com";
 const connection = new Connection(SOLANA_RPC_URL);
 
@@ -26,6 +29,11 @@ app.use(
 );
 app.use("/.well-known", express.static("./.well-known"));
 
+/**
+ * Replace Anchor data (BNs, PublicKeys) with stringified data
+ * @param obj
+ * @returns
+ */
 function replaceBNWithToString(obj: any): any {
   if (obj instanceof BN) {
     return obj.toString();
@@ -77,6 +85,7 @@ const getAssetsByOwner = async (
  */
 async function getAccountInfo(accountAddress: PublicKey): Promise<Object> {
   const accountInfo = await connection.getAccountInfo(accountAddress);
+  // If acccount is not a program, check for Anchor IDL
   if (accountInfo?.owner && !accountInfo.executable) {
     try {
       const program = await Program.at(
@@ -86,6 +95,7 @@ async function getAccountInfo(accountAddress: PublicKey): Promise<Object> {
         })
       );
 
+      // Search through Anchor IDL for the account type
       const rawData = accountInfo.data;
       const coder = new BorshAccountsCoder(program.idl);
       const accountDefTmp = program.idl.accounts?.find((accountType: any) =>
@@ -94,11 +104,16 @@ async function getAccountInfo(accountAddress: PublicKey): Promise<Object> {
           .equals(BorshAccountsCoder.accountDiscriminator(accountType.name))
       );
 
+      // If we found the Anchor IDL type, decode the account state
       if (accountDefTmp) {
         const accountDef = accountDefTmp;
+
+        // Decode the anchor data & stringify the data
         const decodedAccountData = replaceBNWithToString(
           coder.decode(accountDef.name, rawData)
         );
+
+        // Inspect the anchor data for fun 🤪
         console.log(decodedAccountData);
 
         let payload = {
