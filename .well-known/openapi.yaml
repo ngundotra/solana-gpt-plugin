@@ -10,7 +10,7 @@ paths:
     post:
       summary: getAssetsByOwner
       description: Accepts Solana publicKey address. Returns Metaplex NFTs owned by the address
-      operationId: query_account_info
+      operationId: query_assets_by_owner
       requestBody:
         content:
           application/json:

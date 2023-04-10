@@ -12,7 +12,7 @@
       "url": "http://localhost:3333/.well-known/openapi.yaml",
       "has_user_authentication": false
     },
-    "logo_url": "https://localhost:3333/.well-known/logo.png",
+    "logo_url": "http://localhost:3333/.well-known/logo.png",
     "contact_email": "noah.gundotra@solana.com", 
     "legal_info_url": "http://example.com/legal-info"
 }
