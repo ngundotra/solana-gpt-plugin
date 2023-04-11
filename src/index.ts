@@ -148,7 +148,6 @@ app.post("/:methodName", async (req, res) => {
       const balance = await connection.getBalance(new PublicKey(address));
       return res.status(200).send({ lamports: JSON.stringify(balance) });
     } else if (req.params.methodName === "getSignaturesForAddress") {
-      console.log(req.body);
       const accountAddress = new PublicKey(req.body.address);
       const signatures = await connection.getSignaturesForAddress(
         accountAddress,
@@ -166,6 +165,12 @@ app.post("/:methodName", async (req, res) => {
             : null,
         signatures: JSON.stringify(signatures),
       });
+    } else if (req.params.methodName === "getTransaction") {
+      const signature = req.body.signature;
+      const transaction = await connection.getTransaction(signature, {
+        maxSupportedTransactionVersion: 2,
+      });
+      res.status(200).send(JSON.stringify(transaction));
     }
   } catch (error) {
     console.error(error);

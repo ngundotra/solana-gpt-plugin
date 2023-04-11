@@ -84,6 +84,32 @@ paths:
                 $ref: "#/components/schemas/HTTPValidationError"
       security:
         - HTTPBearer: []
+  /getTransaction:
+    post:
+      summary: getTransaction
+      description: Accepts a transaction signature. Returns the publicly available transaction information and metadata
+      operationId: query_transaction
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/getTransactionRequest"
+        required: true
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getTransactionResponse"
+        "500":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+      security:
+        - HTTPBearer: []
   /getSignaturesForAddress:
     post:
       summary: getSignaturesForAddress
@@ -395,145 +421,148 @@ components:
               type: string
             version:
               type: string
-  # AssetList:
-  #   type: array
-  #   items:
-  #     $ref: "#/components/schemas/Asset"
+    getTransactionRequest:
+      type: object
+      required:
+        - signature
+      properties:
+        signature:
+          type: string
+    # TODO: verify this actually describes the response
+    getTransactionResponse:
+      type: object
+      properties:
+        slot:
+          type: integer
+          format: int64
+        transaction:
+          oneOf:
+            - type: object
+            - type: array
+              items:
+                type: string
+              minItems: 2
+        blockTime:
+          type: integer
+          format: int64
+          nullable: true
+        meta:
+          $ref: "#/components/schemas/Meta"
+    Meta:
+      type: object
+      properties:
+        err:
+          type: object
+          nullable: true
+        fee:
+          type: integer
+          format: uint64
+        preBalances:
+          type: array
+          items:
+            type: integer
+            format: uint64
+        postBalances:
+          type: array
+          items:
+            type: integer
+            format: uint64
+        innerInstructions:
+          type: array
+          nullable: true
+          items:
+            $ref: "#/components/schemas/InnerInstruction"
+        preTokenBalances:
+          type: array
+          nullable: true
+          items:
+            $ref: "#/components/schemas/TokenBalance"
+        postTokenBalances:
+          type: array
+          nullable: true
+          items:
+            $ref: "#/components/schemas/TokenBalance"
+        logMessages:
+          type: array
+          nullable: true
+          items:
+            type: string
+        rewards:
+          type: array
+          nullable: true
+          items:
+            $ref: "#/components/schemas/Reward"
+    InnerInstruction:
+      type: object
+      properties:
+        index:
+          type: integer
+          format: int32
+        instructions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Instruction"
+    Instruction:
+      type: object
+      properties:
+        programIdIndex:
+          type: integer
+          format: int32
+        accounts:
+          type: array
+          items:
+            type: integer
+            format: int32
+        data:
+          type: string
+    TokenBalance:
+      type: object
+      properties:
+        accountIndex:
+          type: integer
+          format: int32
+        mint:
+          type: string
+        owner:
+          type: string
+          nullable: true
+        programId:
+          type: string
+          nullable: true
+        uiTokenAmount:
+          $ref: "#/components/schemas/UiTokenAmount"
+    UiTokenAmount:
+      type: object
+      properties:
+        amount:
+          type: string
+        decimals:
+          type: integer
+          format: int32
+        uiAmount:
+          type: number
+          nullable: true
+          deprecated: true
+        uiAmountString:
+          type: string
+    Reward:
+      type: object
+      properties:
+        pubkey:
+          type: string
+        lamports:
+          type: integer
+          format: int64
+        postBalance:
+          type: integer
+          format: uint64
+        rewardType:
+          type: string
+        commission:
+          type: integer
+          format: uint8
+          nullable: true
   securitySchemes:
     HTTPBearer:
       type: http
       scheme: bearer
-
-    # DocumentChunkMetadata:
-    #   title: DocumentChunkMetadata
-    #   type: object
-    #   properties:
-    #     source:
-    #       $ref: "#/components/schemas/Source"
-    #     source_id:
-    #       title: Source Id
-    #       type: string
-    #     url:
-    #       title: Url
-    #       type: string
-    #     created_at:
-    #       title: Created At
-    #       type: string
-    #     author:
-    #       title: Author
-    #       type: string
-    #     document_id:
-    #       title: Document Id
-    #       type: string
-    # DocumentChunkWithScore:
-    #   title: DocumentChunkWithScore
-    #   required:
-    #     - text
-    #     - metadata
-    #     - score
-    #   type: object
-    #   properties:
-    #     id:
-    #       title: Id
-    #       type: string
-    #     text:
-    #       title: Text
-    #       type: string
-    #     metadata:
-    #       $ref: "#/components/schemas/DocumentChunkMetadata"
-    #     embedding:
-    #       title: Embedding
-    #       type: array
-    #       items:
-    #         type: number
-    #     score:
-    #       title: Score
-    #       type: number
-    # DocumentMetadataFilter:
-    #   title: DocumentMetadataFilter
-    #   type: object
-    #   properties:
-    #     document_id:
-    #       title: Document Id
-    #       type: string
-    #     source:
-    #       $ref: "#/components/schemas/Source"
-    #     source_id:
-    #       title: Source Id
-    #       type: string
-    #     author:
-    #       title: Author
-    #       type: string
-    #     start_date:
-    #       title: Start Date
-    #       type: string
-    #     end_date:
-    #       title: End Date
-    #       type: string
-    # Query:
-    #   title: Query
-    #   required:
-    #     - query
-    #   type: object
-    #   properties:
-    #     query:
-    #       title: Query
-    #       type: string
-    #     filter:
-    #       $ref: "#/components/schemas/DocumentMetadataFilter"
-    #     top_k:
-    #       title: Top K
-    #       type: integer
-    #       default: 3
-
-    # properties:
-    #   queries:
-    #     title: Queries
-    #     type: array
-    #     items:
-    #       $ref: "#/components/schemas/Query"
-    # GetAccountInfoRequest:
-    #   title: GetAccountInfoRequest
-    #   required:
-    #     - queries
-    #   type: object
-    #   properties:
-    #     queries:
-    #       title: Queries
-    #       type: array
-    #       items:
-    #         $ref: "#/components/schemas/Query"
-    # QueryResponse:
-    #   title: QueryResponse
-    #   required:
-    #     - results
-    #   type: object
-    #   properties:
-    #     results:
-    #       title: Results
-    #       type: array
-    #       items:
-    #         $ref: "#/components/schemas/QueryResult"
-    # QueryResult:
-    #   title: QueryResult
-    #   required:
-    #     - query
-    #     - results
-    #   type: object
-    #   properties:
-    #     query:
-    #       title: Query
-    #       type: string
-    #     results:
-    #       title: Results
-    #       type: array
-    #       items:
-    #         $ref: "#/components/schemas/DocumentChunkWithScore"
-    # Source:
-    #   title: Source
-    #   enum:
-    #     - email
-    #     - file
-    #     - chat
-    #   type: string
-    #   description: An enumeration.
