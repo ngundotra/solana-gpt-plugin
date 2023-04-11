@@ -93,7 +93,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/getBalanceRequest"
+              $ref: "#/components/schemas/getSignaturesForAddressRequest"
         required: true
       responses:
         "200":
@@ -157,23 +157,49 @@ components:
               type: string
     getSignaturesForAddressResponse:
       title: GetSignaturesForAddressResponse
-      type: array
-      items:
-        type: object
-        required:
-          - signature
-          - slot
-        properties:
-          blockTime:
-            type: number
-          confirmationStatus:
-            type: string
-          err:
+      type: object
+      required:
+        - hasMore
+        - signatures
+      properties:
+        hasMore:
+          type: boolean
+        nextPage:
+          type: object
+          properties:
+            beforeSignature:
+              type: string
+
+        signatures:
+          type: array
+          items:
             type: object
-          signature:
-            type: string
-          slot:
-            type: number
+            required:
+              - signature
+              - slot
+            properties:
+              blockTime:
+                type: number
+              confirmationStatus:
+                type: string
+              err:
+                type: object
+              signature:
+                type: string
+              slot:
+                type: number
+    getSignaturesForAddressRequest:
+      title: GetSignaturesForAddressRequest
+      type: object
+      required:
+        - address
+      properties:
+        address:
+          type: string
+        beforeSignature:
+          type: string
+        untilSignature:
+          type: string
     getBalanceRequest:
       title: GetBalanceRequest
       type: object
