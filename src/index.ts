@@ -147,6 +147,16 @@ app.post("/:methodName", async (req, res) => {
       const { address } = req.body;
       const balance = await connection.getBalance(new PublicKey(address));
       return res.status(200).send({ lamports: JSON.stringify(balance) });
+    } else if (req.params.methodName === "getSignaturesForAddress") {
+      const accountAddress = new PublicKey(req.body.address);
+      const signatures = await connection.getSignaturesForAddress(
+        accountAddress,
+        {
+          limit: 10,
+          before: req.body.beforeSignature ?? null,
+        }
+      );
+      return res.status(200).send({ message: JSON.stringify(signatures) });
     }
   } catch (error) {
     console.error(error);
