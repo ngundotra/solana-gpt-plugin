@@ -11,6 +11,8 @@ import {
 } from "@coral-xyz/anchor";
 import NodeWallet from "@coral-xyz/anchor/dist/cjs/nodewallet";
 
+import { HyperspaceClient, TimeGranularityEnum } from "hyperspace-client-js";
+
 import * as dotenv from "dotenv";
 dotenv.config();
 
@@ -89,6 +91,8 @@ const getAssetsByOwner = async (
  * @returns
  */
 async function getAccountInfo(accountAddress: PublicKey): Promise<Object> {
+  // TODO: copy the explorer code here that manually deserializes a bunch of stuff, like Mango & Pyth
+
   const accountInfo = await connection.getAccountInfo(accountAddress);
   // If acccount is not a program, check for Anchor IDL
   if (accountInfo?.owner && !accountInfo.executable) {
@@ -134,57 +138,110 @@ async function getAccountInfo(accountAddress: PublicKey): Promise<Object> {
   return accountInfo || {};
 }
 
-app.post("/:methodName", async (req, res) => {
-  // Inspect what ChatGPT is sending
-  console.log(req.params.methodName, req.body);
+const HYPERSPACE_URL = "https://beta.api.solanalysis.com/rest";
 
-  // Dispatch the request
-  try {
-    if (req.params.methodName === "getAssetsByOwner") {
-      const accountAddress = new PublicKey(req.body.address);
-      const assets = await getAssetsByOwner(accountAddress.toString());
-      res.status(200).send({ message: JSON.stringify(assets) });
-    } else if (req.params.methodName === "getAccountInfo") {
-      const accountAddress = new PublicKey(req.body.address);
-      const accountInfo = await getAccountInfo(accountAddress);
-      res.status(200).send({ message: JSON.stringify(accountInfo) });
-    } else if (req.params.methodName === "getBalance") {
-      const { address } = req.body;
-      const balance = await connection.getBalance(new PublicKey(address));
-      return res.status(200).send({ lamports: JSON.stringify(balance) });
-    } else if (req.params.methodName === "getSignaturesForAddress") {
-      const accountAddress = new PublicKey(req.body.address);
-      const signatures = await connection.getSignaturesForAddress(
-        accountAddress,
-        {
-          limit: 11,
-          before: req.body.beforeSignature ?? null,
-          until: req.body.untilSignature ?? null,
-        }
-      );
-      return res.status(200).send({
-        hasMore: signatures.length === 11,
-        nextPage:
-          signatures.length === 11
-            ? { beforeSignature: signatures[10].signature }
-            : null,
-        signatures: JSON.stringify(signatures),
-      });
-    } else if (req.params.methodName === "getTransaction") {
-      const signature = req.body.signature;
-      const transaction = await connection.getTransaction(signature, {
-        maxSupportedTransactionVersion: 2,
-      });
-      res.status(200).send(JSON.stringify(transaction));
-    }
-  } catch (error) {
-    console.error(error);
+async function hyperspaceGetCollectionStats(
+  collection: string,
+  page: number = 1,
+  pageSize: number = 5
+): Promise<Object> {
+  const client = new HyperspaceClient(process.env.HYPERSPACE_API_KEY as string);
+  let result = await client.getProjects({
+    paginationInfo: {
+      page_number: 1,
+    },
+  });
+  console.log(result.getProjectStats.project_stats![0]);
+  return result.getProjectStats;
+  //   const url = HYPERSPACE_URL + "/get-project-stat-hist";
+  //   console.log(url, process.env.HYPERSPACE_API_KEY);
+  //   const start = new Date();
+  //   start.setDate(start.getDate() - 3);
+  //   const end = new Date();
+  //   start.setDate(start.getDate() - 1);
+  //   console.log(start.valueOf(), end.valueOf());
 
-    // Prevent ChatGPT from getting access to error messages until we have a better error handling
-    res.status(500).send({ message: "An error occurred" });
-  }
-});
+  //   const result = await axios.post(
+  //     url,
+  //     {
+  //       conditions: {
+  //         project_ids: [collection],
+  //         start_timestamp: start.valueOf(), // 1641128400, // Date.now().valueOf() - 10000000,
+  //         end_timestamp: end.valueOf(), //Date.now().valueOf(),
+  //         time_granularity: "PER_HOUR",
+  //       },
+  //       pagination_info: {
+  //         page_number: page,
+  //         page_size: pageSize,
+  //       },
+  //     },
+  //     {
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //         Authorization: process.env.HYPERSPACE_API_KEY,
+  //       },
+  //     }
+  //   );
+  //   console.log(result.data);
+  //   return result.data;
+}
 
-app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`);
-});
+// app.post("/:methodName", async (req, res) => {
+//   // Inspect what ChatGPT is sending
+//   console.log(req.params.methodName, req.body);
+//   // Dispatch the request
+//   try {
+//     if (req.params.methodName === "getAssetsByOwner") {
+//       const accountAddress = new PublicKey(req.body.address);
+//       const assets = await getAssetsByOwner(accountAddress.toString());
+//       res.status(200).send({ message: JSON.stringify(assets) });
+//     } else if (req.params.methodName === "getAccountInfo") {
+//       const accountAddress = new PublicKey(req.body.address);
+//       const accountInfo = await getAccountInfo(accountAddress);
+//       res.status(200).send({ message: JSON.stringify(accountInfo) });
+//     } else if (req.params.methodName === "getBalance") {
+//       const { address } = req.body;
+//       const balance = await connection.getBalance(new PublicKey(address));
+//       return res.status(200).send({ lamports: JSON.stringify(balance) });
+//     }
+//     else if (req.params.methodName === "getSignaturesForAddress") {
+//       const accountAddress = new PublicKey(req.body.address);
+//       const signatures = await connection.getSignaturesForAddress(
+//         accountAddress,
+//         {
+//           limit: 11,
+//           before: req.body.beforeSignature ?? null,
+//           until: req.body.untilSignature ?? null,
+//         }
+//       );
+//       return res.status(200).send({
+//         hasMore: signatures.length === 11,
+//         nextPage:
+//           signatures.length === 11
+//             ? { beforeSignature: signatures[10].signature }
+//             : null,
+//         signatures: JSON.stringify(signatures),
+//       });
+//     } else if (req.params.methodName === "getTransaction") {
+//       const signature = req.body.signature;
+//       const transaction = await connection.getTransaction(signature, {
+//         maxSupportedTransactionVersion: 2,
+//       });
+//       res.status(200).send(JSON.stringify(transaction));
+//     }
+//   } catch (error) {
+//     console.error(error);
+
+//     // Prevent ChatGPT from getting access to error messages until we have a better error handling
+//     res.status(500).send({ message: "An error occurred" });
+//   }
+// });
+
+// app.listen(port, () => {
+//   console.log(`Server running at http://localhost:${port}`);
+// });
+
+(async () => {
+  console.log(Date.now());
+  hyperspaceGetCollectionStats("degods");
+})();
