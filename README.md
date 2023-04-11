@@ -40,7 +40,7 @@ Returns the assets returned by the [Metaplex Read API spec](https://github.com/m
 Accepts
 ```json
 {
-  signature: string
+  "signature": "h51pjmFcn8LkxejofUQoDYkyubUKaB7bNtyMMSCCamSEYRutS2G2vm2w1ERShko8boRqdaaTAs4MR6sGYkTByNF"
 }
 ```
 
