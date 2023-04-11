@@ -27,7 +27,12 @@ app.use(
     origin: "*",
   })
 );
-app.use("/.well-known", express.static("./.well-known"));
+
+if (process.env.DEV === "true") {
+  app.use("/.well-known", express.static("./.well-known-dev"));
+} else {
+  app.use("/.well-known", express.static("./.well-known"));
+}
 
 /**
  * Replace Anchor data (BNs, PublicKeys) with stringified data
