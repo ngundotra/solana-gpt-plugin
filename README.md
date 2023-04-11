@@ -1,7 +1,7 @@
 # Solana GPT Plugin
 A ChatGPT plugin for Solana
 
-<img width="794" alt="Screen Shot 2023-04-10 at 3 42 41 PM" src="https://user-images.githubusercontent.com/7481857/230983727-a2862030-258a-4dcf-949d-99efa47903f5.png">
+<img width="650" alt="Screen Shot 2023-04-10 at 3 42 41 PM" src="https://user-images.githubusercontent.com/7481857/231182274-40b42f0e-5e5d-4050-9e31-2f75375481c1.png">
 
 ## Endpoints
 
@@ -34,3 +34,14 @@ Returns
 ### /getAssetsByOwner
 
 Returns the assets returned by the [Metaplex Read API spec](https://github.com/metaplex-foundation/api-specifications/blob/main/specifications/read_api/openrpc_spec.json)
+
+### /getTransaction
+
+Accepts
+```json
+{
+  signature: string
+}
+```
+
+Returns the transaction status metadata for the `getTransaction` method from the Solana RPC.
