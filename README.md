@@ -45,3 +45,10 @@ Accepts
 ```
 
 Returns the transaction status metadata for the `getTransaction` method from the Solana RPC.
+
+
+## Development
+
+To install dependencies, just execute `yarn`. This project uses `node` with version `>=16.17.0`.
+
+To start a development server, execute `yarn dev`. This will start the plugin available from `localhost:3333` with its own configuration settings in `.well-known-dev/`.
