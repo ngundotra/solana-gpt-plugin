@@ -1,5 +1,5 @@
 # Solana GPT Plugin
-A ChatGPT plugin for Solana
+A ChatGPT plugin for Solana. Install as an unverified plugin with url `https://solana-gpt-plugin.onrender.com`.
 
 <img width="650" alt="Screen Shot 2023-04-10 at 3 42 41 PM" src="https://user-images.githubusercontent.com/7481857/231182274-40b42f0e-5e5d-4050-9e31-2f75375481c1.png">
 
