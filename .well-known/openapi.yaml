@@ -159,6 +159,30 @@ paths:
                 $ref: "#/components/schemas/HTTPValidationError"
       security:
         - HTTPBearer: []
+  /createBuyTransaction:
+    post:
+      summary: Accepts accounts needed to buy the NFT represented by the token
+      operationId: create_buy_nft_tx
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/createBuyTransactionRequest"
+      responses:
+        "200":
+          description: Successful Response
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/createBuyTransactionResponse"
+        "500":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+      security:
+        - HTTPBearer: []
 components:
   schemas:
     getAccountInfoRequest:
@@ -585,6 +609,20 @@ components:
           type: integer
           format: uint8
           nullable: true
+  getCollectionsByFloorPriceRequest:
+    type: object
+    properties:
+      maxFloorPrice:
+        type: number
+      pageNumber:
+        type: number
+      orderBy:
+        type: string
+        enum:
+          - ASC
+          - DESC
+      humanReadable:
+          type: boolean
   getCollectionsByFloorPriceResponse:
     type: object
     properties:
@@ -610,6 +648,20 @@ components:
         type: string
       floor_price:
         type: number
+  createBuyTransactionRequest:
+    type: object
+    properties:
+      buyer:
+        type: string
+      token:
+        type: string
+      price:
+        type: number
+  createBuyTransactionResponse:
+    type: object
+    properties:
+      transactionBytes:
+        type: string
   securitySchemes:
     HTTPBearer:
       type: http
