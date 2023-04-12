@@ -178,13 +178,21 @@ async function hyperspaceGetListedCollectionNFTs(
     (a, b) => a.lowest_listing_mpa!.price! - b.lowest_listing_mpa!.price!
   );
 
-  let crucialInfo = orderedListings.map((arr) => {
-    return {
-      price: arr.lowest_listing_mpa!.price!,
-      token: arr.token_address,
-      place: arr.lowest_listing_mpa!.marketplace_program_id!,
-    };
-  });
+  let crucialInfo = orderedListings
+    .filter(
+      (arr) =>
+        // We filter out Magic Eden's marketplace because they
+        // require an API key to make purchases programmatically
+        arr.lowest_listing_mpa?.marketplace_program_id !==
+        "M2mx93ekt1fmXSVkTrUL9xVFHkmME8HTUi5Cyc5aF7K"
+    )
+    .map((arr) => {
+      return {
+        price: arr.lowest_listing_mpa!.price!,
+        token: arr.token_address,
+        marketplace: arr.lowest_listing_mpa!.marketplace_program_id!,
+      };
+    });
 
   return {
     listings: crucialInfo,
@@ -197,8 +205,9 @@ async function hyperspaceGetCollectionsByFloorPrice(
   maxFloorPrice: number | undefined,
   minFloorPrice: number | undefined,
   pageNumber: number = 1,
+  pageSize: number = 10,
   orderBy: string = "DESC",
-  humanReadableSlugs: boolean = true
+  humanReadableSlugs: boolean = false
 ) {
   let projects = await client.getProjects({
     condition: {
@@ -208,10 +217,11 @@ async function hyperspaceGetCollectionsByFloorPrice(
       },
     },
     orderBy: {
-      field_name: "floor_price",
+      field_name: "lowest_listing_price",
       sort_order: orderBy as any,
     },
     paginationInfo: {
+      page_size: pageSize,
       page_number: pageNumber,
     },
   });
@@ -225,6 +235,8 @@ async function hyperspaceGetCollectionsByFloorPrice(
       floor_price: project.floor_price,
     };
   });
+  console.log("Stats", stats!.length);
+  console.log("Stats", stats);
   if (humanReadableSlugs) {
     stats = stats?.filter((stat) => {
       try {
@@ -258,6 +270,7 @@ async function hyperspaceCreateBuyTx(
     buyerBroker: "",
     buyerBrokerBasisPoints: 0,
   });
+  console.log("Transaction Data", transactionData);
 
   return {
     transactionBytes: base64.encode(
@@ -333,14 +346,16 @@ app.post("/:methodName", async (req, res) => {
         minFloorPrice,
         orderBy,
         pageNumber,
-        humanReadableOnly,
+        pageSize,
+        humanReadable,
       } = req.body;
       const result = await hyperspaceGetCollectionsByFloorPrice(
         maxFloorPrice,
         minFloorPrice,
         pageNumber,
+        pageSize,
         orderBy,
-        humanReadableOnly
+        humanReadable
       );
       return res.status(200).send(JSON.stringify(result));
     }
