@@ -188,9 +188,57 @@ async function hyperspaceGetListedCollectionNFTs(
 
   return {
     listings: crucialInfo,
-    currentPage:
-      results.getMarketPlaceSnapshots.pagination_info.current_page_number,
+    currentPage: pageNumber,
     hasMore: results.getMarketPlaceSnapshots.pagination_info.has_next_page,
+  };
+}
+
+async function hyperspaceGetCollectionsByFloorPrice(
+  maxFloorPrice: number | undefined,
+  minFloorPrice: number | undefined,
+  pageNumber: number = 1,
+  orderBy: string = "DESC",
+  humanReadableSlugs: boolean = true
+) {
+  let projects = await client.getProjects({
+    condition: {
+      floorPriceFilter: {
+        min: minFloorPrice ?? null,
+        max: maxFloorPrice ?? null,
+      },
+    },
+    orderBy: {
+      field_name: "floor_price",
+      sort_order: orderBy as any,
+    },
+    paginationInfo: {
+      page_number: pageNumber,
+    },
+  });
+
+  let stats = projects.getProjectStats.project_stats?.map((project) => {
+    return {
+      id: project.project_id,
+      desc: project.project?.display_name,
+      img: project.project?.img_url ?? "",
+      website: project.project?.website ?? "",
+      floor_price: project.floor_price,
+    };
+  });
+  if (humanReadableSlugs) {
+    stats = stats?.filter((stat) => {
+      try {
+        bs58.decode(stat.id!);
+        return false;
+      } catch (err) {
+        return true;
+      }
+    });
+  }
+  return {
+    projects: stats,
+    hasMore: projects.getProjectStats.pagination_info.has_next_page,
+    currentPage: pageNumber,
   };
 }
 
@@ -277,6 +325,22 @@ app.post("/:methodName", async (req, res) => {
         projectId,
         pageNumber,
         priceOrder
+      );
+      return res.status(200).send(JSON.stringify(result));
+    } else if (req.params.methodName === "getCollectionsByFloorPrice") {
+      const {
+        maxFloorPrice,
+        minFloorPrice,
+        orderBy,
+        pageNumber,
+        humanReadableOnly,
+      } = req.body;
+      const result = await hyperspaceGetCollectionsByFloorPrice(
+        maxFloorPrice,
+        minFloorPrice,
+        pageNumber,
+        orderBy,
+        humanReadableOnly
       );
       return res.status(200).send(JSON.stringify(result));
     }
