@@ -2,7 +2,7 @@ import express from "express";
 import axios from "axios";
 import bodyParser from "body-parser";
 import cors from "cors";
-import { Connection, Keypair, PublicKey } from "@solana/web3.js";
+import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
 import {
   AnchorProvider,
   BN,
@@ -10,10 +10,15 @@ import {
   Program,
 } from "@coral-xyz/anchor";
 import NodeWallet from "@coral-xyz/anchor/dist/cjs/nodewallet";
-
-import { HyperspaceClient, TimeGranularityEnum } from "hyperspace-client-js";
+import { readFileSync } from "fs";
+import {
+  HyperspaceClient,
+  SortOrderEnum,
+  TimeGranularityEnum,
+} from "hyperspace-client-js";
 
 import * as dotenv from "dotenv";
+import { base64, bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 dotenv.config();
 
 const app = express();
@@ -22,6 +27,8 @@ const port = process.env.PORT || 3333;
 const HELIUS_URL = `https://rpc.helius.xyz/?api-key=${process.env.HELIUS_API_KEY}`;
 const SOLANA_RPC_URL = "https://api.mainnet-beta.solana.com";
 const connection = new Connection(SOLANA_RPC_URL);
+
+const client = new HyperspaceClient(process.env.HYPERSPACE_API_KEY as string);
 
 app.use(bodyParser.json());
 app.use(
@@ -138,110 +145,149 @@ async function getAccountInfo(accountAddress: PublicKey): Promise<Object> {
   return accountInfo || {};
 }
 
-const HYPERSPACE_URL = "https://beta.api.solanalysis.com/rest";
+type ListedNFTResponse = {
+  listings: {
+    price: number;
+    token: string;
+  }[];
+  currentPage: number;
+  hasMore: boolean;
+};
 
-async function hyperspaceGetCollectionStats(
-  collection: string,
-  page: number = 1,
-  pageSize: number = 5
-): Promise<Object> {
-  const client = new HyperspaceClient(process.env.HYPERSPACE_API_KEY as string);
-  let result = await client.getProjects({
+async function hyperspaceGetListedCollectionNFTs(
+  projectId: string,
+  pageNumber: number = 1,
+  priceOrder: string = "DESC"
+): Promise<ListedNFTResponse> {
+  let results = await client.getMarketplaceSnapshot({
+    condition: {
+      projects: [{ project_id: projectId }],
+      onlyListings: true,
+    },
+    orderBy: {
+      field_name: "lowest_listing_price",
+      sort_order: priceOrder as any,
+    },
     paginationInfo: {
-      page_number: 1,
+      page_number: pageNumber,
     },
   });
-  console.log(result.getProjectStats.project_stats![0]);
-  return result.getProjectStats;
-  //   const url = HYPERSPACE_URL + "/get-project-stat-hist";
-  //   console.log(url, process.env.HYPERSPACE_API_KEY);
-  //   const start = new Date();
-  //   start.setDate(start.getDate() - 3);
-  //   const end = new Date();
-  //   start.setDate(start.getDate() - 1);
-  //   console.log(start.valueOf(), end.valueOf());
 
-  //   const result = await axios.post(
-  //     url,
-  //     {
-  //       conditions: {
-  //         project_ids: [collection],
-  //         start_timestamp: start.valueOf(), // 1641128400, // Date.now().valueOf() - 10000000,
-  //         end_timestamp: end.valueOf(), //Date.now().valueOf(),
-  //         time_granularity: "PER_HOUR",
-  //       },
-  //       pagination_info: {
-  //         page_number: page,
-  //         page_size: pageSize,
-  //       },
-  //     },
-  //     {
-  //       headers: {
-  //         "Content-Type": "application/json",
-  //         Authorization: process.env.HYPERSPACE_API_KEY,
-  //       },
-  //     }
-  //   );
-  //   console.log(result.data);
-  //   return result.data;
+  let snaps = results.getMarketPlaceSnapshots.market_place_snapshots!;
+  let orderedListings = snaps.sort(
+    (a, b) => a.lowest_listing_mpa!.price! - b.lowest_listing_mpa!.price!
+  );
+
+  let crucialInfo = orderedListings.map((arr) => {
+    return {
+      price: arr.lowest_listing_mpa!.price!,
+      token: arr.token_address,
+      place: arr.lowest_listing_mpa!.marketplace_program_id!,
+    };
+  });
+
+  return {
+    listings: crucialInfo,
+    currentPage:
+      results.getMarketPlaceSnapshots.pagination_info.current_page_number,
+    hasMore: results.getMarketPlaceSnapshots.pagination_info.has_next_page,
+  };
 }
 
-// app.post("/:methodName", async (req, res) => {
-//   // Inspect what ChatGPT is sending
-//   console.log(req.params.methodName, req.body);
-//   // Dispatch the request
-//   try {
-//     if (req.params.methodName === "getAssetsByOwner") {
-//       const accountAddress = new PublicKey(req.body.address);
-//       const assets = await getAssetsByOwner(accountAddress.toString());
-//       res.status(200).send({ message: JSON.stringify(assets) });
-//     } else if (req.params.methodName === "getAccountInfo") {
-//       const accountAddress = new PublicKey(req.body.address);
-//       const accountInfo = await getAccountInfo(accountAddress);
-//       res.status(200).send({ message: JSON.stringify(accountInfo) });
-//     } else if (req.params.methodName === "getBalance") {
-//       const { address } = req.body;
-//       const balance = await connection.getBalance(new PublicKey(address));
-//       return res.status(200).send({ lamports: JSON.stringify(balance) });
-//     }
-//     else if (req.params.methodName === "getSignaturesForAddress") {
-//       const accountAddress = new PublicKey(req.body.address);
-//       const signatures = await connection.getSignaturesForAddress(
-//         accountAddress,
-//         {
-//           limit: 11,
-//           before: req.body.beforeSignature ?? null,
-//           until: req.body.untilSignature ?? null,
-//         }
-//       );
-//       return res.status(200).send({
-//         hasMore: signatures.length === 11,
-//         nextPage:
-//           signatures.length === 11
-//             ? { beforeSignature: signatures[10].signature }
-//             : null,
-//         signatures: JSON.stringify(signatures),
-//       });
-//     } else if (req.params.methodName === "getTransaction") {
-//       const signature = req.body.signature;
-//       const transaction = await connection.getTransaction(signature, {
-//         maxSupportedTransactionVersion: 2,
-//       });
-//       res.status(200).send(JSON.stringify(transaction));
-//     }
-//   } catch (error) {
-//     console.error(error);
+type CreateBuyTxResponse = {
+  transactionBytes: string;
+};
 
-//     // Prevent ChatGPT from getting access to error messages until we have a better error handling
-//     res.status(500).send({ message: "An error occurred" });
-//   }
-// });
+async function hyperspaceCreateBuyTx(
+  buyer: string,
+  token: string,
+  price: number
+): Promise<CreateBuyTxResponse> {
+  let transactionData = await client.createBuyTx({
+    buyerAddress: buyer,
+    tokenAddress: token,
+    price: price,
+    buyerBroker: "",
+    buyerBrokerBasisPoints: 0,
+  });
 
-// app.listen(port, () => {
-//   console.log(`Server running at http://localhost:${port}`);
-// });
+  return {
+    transactionBytes: base64.encode(
+      Buffer.from(transactionData.createBuyTx.stdBuffer!)
+    ),
+  };
+}
 
-(async () => {
-  console.log(Date.now());
-  hyperspaceGetCollectionStats("degods");
-})();
+app.post("/:methodName", async (req, res) => {
+  // Inspect what ChatGPT is sending
+  console.log(req.params.methodName, req.body);
+
+  // Dispatch the request
+  try {
+    // RPC methods
+    if (req.params.methodName === "getAccountInfo") {
+      const accountAddress = new PublicKey(req.body.address);
+      const accountInfo = await getAccountInfo(accountAddress);
+      res.status(200).send({ message: JSON.stringify(accountInfo) });
+    } else if (req.params.methodName === "getBalance") {
+      const { address } = req.body;
+      const balance = await connection.getBalance(new PublicKey(address));
+      return res.status(200).send({ lamports: JSON.stringify(balance) });
+    } else if (req.params.methodName === "getSignaturesForAddress") {
+      const accountAddress = new PublicKey(req.body.address);
+      const signatures = await connection.getSignaturesForAddress(
+        accountAddress,
+        {
+          limit: 11,
+          before: req.body.beforeSignature ?? null,
+          until: req.body.untilSignature ?? null,
+        }
+      );
+      return res.status(200).send({
+        hasMore: signatures.length === 11,
+        nextPage:
+          signatures.length === 11
+            ? { beforeSignature: signatures[10].signature }
+            : null,
+        signatures: JSON.stringify(signatures),
+      });
+    } else if (req.params.methodName === "getTransaction") {
+      const signature = req.body.signature;
+      const transaction = await connection.getTransaction(signature, {
+        maxSupportedTransactionVersion: 2,
+      });
+      res.status(200).send(JSON.stringify(transaction));
+    }
+
+    // Metaplex ReadAPI methods
+    if (req.params.methodName === "getAssetsByOwner") {
+      const accountAddress = new PublicKey(req.body.address);
+      const assets = await getAssetsByOwner(accountAddress.toString());
+      res.status(200).send({ message: JSON.stringify(assets) });
+    }
+
+    // NFT specific methods - using Hyperspace
+    if (req.params.methodName === "createBuyTransaction") {
+      const { buyer, token, price } = req.body;
+      const result = await hyperspaceCreateBuyTx(buyer, token, price);
+      return res.status(200).send(JSON.stringify(result));
+    } else if (req.params.methodName === "getListedCollectionNFTs") {
+      const { projectId, pageNumber, priceOrder } = req.body;
+      const result = await hyperspaceGetListedCollectionNFTs(
+        projectId,
+        pageNumber,
+        priceOrder
+      );
+      return res.status(200).send(JSON.stringify(result));
+    }
+  } catch (error) {
+    console.error(error);
+
+    // Prevent ChatGPT from getting access to error messages until we have a better error handling
+    res.status(500).send({ message: "An error occurred" });
+  }
+});
+
+app.listen(port, () => {
+  console.log(`Server running at http://localhost:${port}`);
+});
