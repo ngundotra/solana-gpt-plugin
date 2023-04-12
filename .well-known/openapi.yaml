@@ -94,7 +94,6 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/getTransactionRequest"
-        required: true
       responses:
         "200":
           description: Successful Response
@@ -128,6 +127,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/getSignaturesForAddressResponse"
+        "500":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+      security:
+        - HTTPBearer: []
+  /getCollectionsByFloorPrice:
+    post:
+      summary: Accepts bounds for floor prices, otherwise just returns descending list of NFT projects with human readable names
+      operationId: query_nft_collections_by_fp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/getCollectionsByFloorPriceRequest"
+      responses:
+        "200":
+          description: Successful Response
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/getCollectionsByFloorPriceResponse"
         "500":
           description: Validation Error
           content:
