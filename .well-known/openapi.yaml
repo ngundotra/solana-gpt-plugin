@@ -585,6 +585,31 @@ components:
           type: integer
           format: uint8
           nullable: true
+  getCollectionsByFloorPriceResponse:
+    type: object
+    properties:
+      hasMore:
+        type: boolean
+      currentPage:
+        type: number
+      projects:
+        type: array
+        items: {
+          $ref: "#/components/schemas/CollectionResponse"
+        }
+  CollectionResponse:
+    type: object
+    properties:
+      id:
+        type: string 
+      desc:
+        type: string
+      img:
+        type: string
+      website:
+        type: string
+      floor_price:
+        type: number
   securitySchemes:
     HTTPBearer:
       type: http
