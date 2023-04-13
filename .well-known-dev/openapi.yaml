@@ -94,7 +94,6 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/getTransactionRequest"
-        required: true
       responses:
         "200":
           description: Successful Response
@@ -128,6 +127,78 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/getSignaturesForAddressResponse"
+        "500":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+      security:
+        - HTTPBearer: []
+  /getCollectionsByFloorPrice:
+    post:
+      summary: Search through Solana NFT collections by floor price
+      operationId: query_nft_collections_by_fp
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/getCollectionsByFloorPriceRequest"
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getCollectionsByFloorPriceResponse"
+        "500":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+      security:
+        - HTTPBearer: []
+  /createBuyTransaction:
+    post:
+      summary: Accepts accounts needed to buy the NFT represented by the token
+      operationId: create_buy_nft_tx
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/createBuyTransactionRequest"
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/createBuyTransactionResponse"
+        "500":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+      security:
+        - HTTPBearer: []
+  /getListedCollectionNFTs:
+    post:
+      summary: Returns the listed NFTs in a collection available to purchase
+      operationId: query_listed_nfts_for_collection
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/getListedCollectionNFTsRequest"
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getListedCollectionNFTsRespsonse"
         "500":
           description: Validation Error
           content:
@@ -239,9 +310,9 @@ components:
       title: GetBalanceResponse
       type: object
       properties:
-        lamports:
-          title: Lamports
-          type: string
+        sol:
+          title: sol
+          type: number
     HTTPValidationError:
       title: HTTPValidationError
       type: object
@@ -249,11 +320,6 @@ components:
         message:
           title: Message
           type: string
-        # detail:
-        #   title: Detail
-        #   type: array
-        #   items:
-        #     $ref: "#/components/schemas/ValidationError"
     ValidationError:
       title: ValidationError
       required:
@@ -562,6 +628,94 @@ components:
           type: integer
           format: uint8
           nullable: true
+    getCollectionsByFloorPriceRequest:
+      type: object
+      properties:
+        maxFloorPrice:
+          type: number
+          nullable: true
+        minFloorPrice:
+          type: number
+          nullable: true
+        pageNumber:
+          type: number
+          nullable: true
+        orderBy:
+          type: string
+          enum:
+            - ASC
+            - DESC
+          nullable: true
+    getCollectionsByFloorPriceResponse:
+      type: object
+      properties:
+        hasMore:
+          type: boolean
+        currentPage:
+          type: number
+        projects:
+          type: array
+          items: { $ref: "#/components/schemas/CollectionResponse" }
+    CollectionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        desc:
+          type: string
+        img:
+          type: string
+        website:
+          type: string
+        floor_price:
+          type: number
+    createBuyTransactionRequest:
+      type: object
+      properties:
+        buyer:
+          type: string
+        token:
+          type: string
+        price:
+          type: number
+    createBuyTransactionResponse:
+      type: object
+      properties:
+        transactionBytes:
+          type: string
+    getListedCollectionNFTsRequest:
+      type: object
+      properties:
+        projectId:
+          type: string
+        pageNumber:
+          type: number
+          nullable: true
+        priceOrder:
+          type: string
+          nullable: true
+        pageSize:
+          type: number
+          nullable: true
+    getListedCollectionNFTsResponse:
+      type: object
+      properties:
+        listings:
+          type: array
+          items: { $ref: "#/components/schemas/ListedNFT" }
+        hasMore:
+          type: boolean
+        currentPage:
+          type: number
+    ListedNFT:
+      type: object
+      properties:
+        price:
+          type: number
+        token:
+          type: string
+        marketplace:
+          type: string
   securitySchemes:
     HTTPBearer:
       type: http
