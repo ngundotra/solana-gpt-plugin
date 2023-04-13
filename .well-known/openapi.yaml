@@ -310,9 +310,9 @@ components:
       title: GetBalanceResponse
       type: object
       properties:
-        lamports:
-          title: Lamports
-          type: string
+        sol:
+          title: sol
+          type: number
     HTTPValidationError:
       title: HTTPValidationError
       type: object
@@ -320,11 +320,6 @@ components:
         message:
           title: Message
           type: string
-        # detail:
-        #   title: Detail
-        #   type: array
-        #   items:
-        #     $ref: "#/components/schemas/ValidationError"
     ValidationError:
       title: ValidationError
       required:
@@ -638,15 +633,19 @@ components:
       properties:
         maxFloorPrice:
           type: number
+          nullable: true
+        minFloorPrice:
+          type: number
+          nullable: true
         pageNumber:
           type: number
+          nullable: true
         orderBy:
           type: string
           enum:
             - ASC
             - DESC
-        humanReadable:
-          type: boolean
+          nullable: true
     getCollectionsByFloorPriceResponse:
       type: object
       properties:
@@ -690,9 +689,14 @@ components:
         projectId:
           type: string
         pageNumber:
-          type: string
+          type: number
+          nullable: true
         priceOrder:
           type: string
+          nullable: true
+        pageSize:
+          type: number
+          nullable: true
     getListedCollectionNFTsResponse:
       type: object
       properties:
