@@ -2,7 +2,13 @@ import express from "express";
 import axios from "axios";
 import bodyParser from "body-parser";
 import cors from "cors";
-import { Connection, Keypair, PublicKey, Transaction } from "@solana/web3.js";
+import {
+  Connection,
+  Keypair,
+  LAMPORTS_PER_SOL,
+  PublicKey,
+  Transaction,
+} from "@solana/web3.js";
 import {
   AnchorProvider,
   BN,
@@ -10,25 +16,33 @@ import {
   Program,
 } from "@coral-xyz/anchor";
 import NodeWallet from "@coral-xyz/anchor/dist/cjs/nodewallet";
-import { readFileSync } from "fs";
-import {
-  HyperspaceClient,
-  SortOrderEnum,
-  TimeGranularityEnum,
-} from "hyperspace-client-js";
+import { HyperspaceClient } from "hyperspace-client-js";
+import { encodeURL } from "@solana/pay";
+import * as qrcode from "qrcode";
 
-import * as dotenv from "dotenv";
 import { base64, bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { encode } from "querystring";
+import * as dotenv from "dotenv";
+
 dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3333;
 
+let SELF_URL: string;
+if (process.env.DEV === "true") {
+  SELF_URL = `http://localhost:${port}`;
+} else {
+  SELF_URL = "https://solana-gpt-plugin.onrender.com";
+}
+
 const HELIUS_URL = `https://rpc.helius.xyz/?api-key=${process.env.HELIUS_API_KEY}`;
 const SOLANA_RPC_URL = "https://api.mainnet-beta.solana.com";
 const connection = new Connection(SOLANA_RPC_URL);
 
-const client = new HyperspaceClient(process.env.HYPERSPACE_API_KEY as string);
+const hyperSpaceClient = new HyperspaceClient(
+  process.env.HYPERSPACE_API_KEY as string
+);
 
 app.use(bodyParser.json());
 app.use(
@@ -159,7 +173,7 @@ async function hyperspaceGetListedCollectionNFTs(
   pageNumber: number = 1,
   priceOrder: string = "DESC"
 ): Promise<ListedNFTResponse> {
-  let results = await client.getMarketplaceSnapshot({
+  let results = await hyperSpaceClient.getMarketplaceSnapshot({
     condition: {
       projects: [{ project_id: projectId }],
       onlyListings: true,
@@ -209,7 +223,7 @@ async function hyperspaceGetCollectionsByFloorPrice(
   orderBy: string = "DESC",
   humanReadableSlugs: boolean = false
 ) {
-  let projects = await client.getProjects({
+  let projects = await hyperSpaceClient.getProjects({
     condition: {
       floorPriceFilter: {
         min: minFloorPrice ?? null,
@@ -236,7 +250,6 @@ async function hyperspaceGetCollectionsByFloorPrice(
     };
   });
   console.log("Stats", stats!.length);
-  console.log("Stats", stats);
   if (humanReadableSlugs) {
     stats = stats?.filter((stat) => {
       try {
@@ -255,7 +268,7 @@ async function hyperspaceGetCollectionsByFloorPrice(
 }
 
 type CreateBuyTxResponse = {
-  transactionBytes: string;
+  transaction: string;
 };
 
 async function hyperspaceCreateBuyTx(
@@ -263,21 +276,73 @@ async function hyperspaceCreateBuyTx(
   token: string,
   price: number
 ): Promise<CreateBuyTxResponse> {
-  let transactionData = await client.createBuyTx({
+  let transactionData = await hyperSpaceClient.createBuyTx({
     buyerAddress: buyer,
     tokenAddress: token,
     price: price,
+    // Take no fee on making tx for ChatGPT users
     buyerBroker: "",
     buyerBrokerBasisPoints: 0,
   });
   console.log("Transaction Data", transactionData);
 
   return {
-    transactionBytes: base64.encode(
+    transaction: base64.encode(
       Buffer.from(transactionData.createBuyTx.stdBuffer!)
     ),
   };
 }
+
+/**
+ * Create QR code image
+ */
+app.get("/qr/createBuyNFT", async (req, res) => {
+  console.log("QR code hit");
+  const { buyer, token, price } = req.query;
+  const encoded = encode({
+    buyer: buyer as string,
+    token: token as string,
+    price: price as string,
+  });
+  let uri = new URL(`${SELF_URL}/sign/createBuyNFT?${encoded}`);
+  let solanaPayUrl = encodeURL({
+    link: uri,
+  });
+  qrcode.toFileStream(res.status(200), solanaPayUrl.toString());
+});
+
+/**
+ * Create QR code image
+ */
+app.get("/page/createBuyNFT", async (req, res) => {
+  console.log("Page hit");
+  const { buyer, token, price } = req.query;
+  const encoded = encode({
+    buyer: buyer as string,
+    token: token as string,
+    price: price as string,
+  });
+  let uri = new URL(`${SELF_URL}/qr/createBuyNFT?${encoded}`);
+  res.status(200).send(`<html>
+    <meta property="og:title" content="Sign to Buy NFT" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="${SELF_URL}/page/createBuyNFT?${encoded}" />
+    <meta property="og:image" content="${uri}" />
+    </html>`);
+});
+
+/**
+ * Solana pay compliant request
+ */
+app.get("/sign/createBuyNFT", async (req, res) => {
+  const { buyer, token, price } = req.query;
+  const result = await hyperspaceCreateBuyTx(
+    buyer as string,
+    token as string,
+    Number.parseFloat(price as string)
+  );
+  return res.status(200).send(JSON.stringify(result));
+});
 
 app.post("/:methodName", async (req, res) => {
   // Inspect what ChatGPT is sending
@@ -293,7 +358,7 @@ app.post("/:methodName", async (req, res) => {
     } else if (req.params.methodName === "getBalance") {
       const { address } = req.body;
       const balance = await connection.getBalance(new PublicKey(address));
-      return res.status(200).send({ lamports: JSON.stringify(balance) });
+      return res.status(200).send({ sol: balance / LAMPORTS_PER_SOL });
     } else if (req.params.methodName === "getSignaturesForAddress") {
       const accountAddress = new PublicKey(req.body.address);
       const signatures = await connection.getSignaturesForAddress(
@@ -329,9 +394,18 @@ app.post("/:methodName", async (req, res) => {
 
     // NFT specific methods - using Hyperspace
     if (req.params.methodName === "createBuyTransaction") {
-      const { buyer, token, price } = req.body;
-      const result = await hyperspaceCreateBuyTx(buyer, token, price);
-      return res.status(200).send(JSON.stringify(result));
+      let { buyer, token, price } = req.body;
+      const encoded = encode({
+        buyer: buyer as string,
+        token: token as string,
+        price: price as number,
+      });
+
+      // Create an OpenGraph (https://ogp.me/) rich link preview
+      // so that SolanaPay QR Code shows up to buy transaction
+      res.status(200).send({
+        linkToSign: `${SELF_URL}/page/createBuyNFT?${encoded}`,
+      });
     } else if (req.params.methodName === "getListedCollectionNFTs") {
       const { projectId, pageNumber, priceOrder } = req.body;
       const result = await hyperspaceGetListedCollectionNFTs(
