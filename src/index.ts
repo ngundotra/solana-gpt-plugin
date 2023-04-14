@@ -19,6 +19,7 @@ import NodeWallet from "@coral-xyz/anchor/dist/cjs/nodewallet";
 import { HyperspaceClient } from "hyperspace-client-js";
 import { encodeURL } from "@solana/pay";
 import * as qrcode from "qrcode";
+import sharp from "sharp";
 
 import { base64, bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { encode } from "querystring";
@@ -308,7 +309,19 @@ app.get("/qr/createBuyNFT", async (req, res) => {
   let solanaPayUrl = encodeURL({
     link: uri,
   });
-  qrcode.toFileStream(res.status(200), solanaPayUrl.toString());
+
+  let dataUrl = await qrcode.toDataURL(solanaPayUrl.toString());
+  const base64Data = dataUrl.replace(/^data:image\/png;base64,/, "");
+  const imageBuffer = Buffer.from(base64Data, "base64");
+  let buffer = await sharp(imageBuffer)
+    .extend({
+      extendWith: "background",
+      background: "#ffffff",
+      top: 135,
+      bottom: 135,
+    })
+    .toBuffer();
+  res.status(200).send(buffer);
 });
 
 /**
