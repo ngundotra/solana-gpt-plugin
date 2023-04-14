@@ -46,6 +46,87 @@ Accepts
 
 Returns the transaction status metadata for the `getTransaction` method from the Solana RPC.
 
+### Endpoints for NFT discovery 
+These endpoints are under development and subject to rapid change
+
+#### /getCollectionsByFloorPrice
+
+Returns
+```json
+{
+  "projects": [
+    {
+      "id": "<hyperspace-collection-id or pubkey>",
+      "desc": "collection description",
+      "img": "collection image url",
+      "website": "collection website url",
+      "floor_price": 0.1
+    }
+  ],
+  "hasMore": true,
+  "currentPage'": 1
+}
+```
+
+#### /getListedCollectionNFTs
+
+Returns LLM friendly response of available NFTs:
+```json
+{ 
+  "listings": [
+    {
+      "price": 0.1,
+      "token": "<token-address-pubkey>",
+      "marketplace": "<marketplace-pubkey>"
+    }
+  ],
+  "hasMore": true,
+  "currentPage": 1
+} 
+```
+
+#### /createBuyTransaction
+
+Right now we are trusting Hyperspace to craft a valid transaction for us. 
+In the future we will setup a write interface for programs on Solana to adhere to in order to 
+be a target of LLM transaction composition.
+
+Returns
+```json
+{
+  "linkToSign": "<url-to-sign-transaction>" 
+}
+```
+
+### Endpoints for Transaction Composition (not LLM accessible)
+
+These are also subject to change, and we may create actual webpages to inspect
+the transaction before signing. However for now, these are simply redirect links 
+to ensure that SolanaPay QR codes show up in the ChatGPT link previews.
+
+#### /page/createBuyNFT
+
+Returns a webpage with [OpenGraph](https://ogp.me/) metadata that will be rendered in the ChatGPT 
+rich link preview. All ChatGPT links should be proxied through this sort of pipeline to maximize
+user engagement of links. The `og:image` tag is to `/qr/createBuyNFT` to show a SolanaPay QR code in link previews.
+
+This is currently a blank page, but we may show a preview of the transaction in the future.
+
+#### /qr/createBuyNFT
+
+Returns a PNG QR code that has been optimized to show in the particular aspect ratio of ChatGPT plugins. 
+This just encodes a SolanaPay link that redirects to `/sign/createBuyNFT`. 
+
+#### /sign/createBuyNFT
+
+This is the final redirect link that actually returns transaction bytes in a SolanaPay compatible format
+so users can sign transactions that are recommended by ChatGPT.
+
+```json
+{
+  "transaction": "<base64-encoded-transaction-bytes>"
+}
+```
 
 ## Development
 
