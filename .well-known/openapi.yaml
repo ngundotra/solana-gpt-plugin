@@ -681,7 +681,7 @@ components:
     createBuyTransactionResponse:
       type: object
       properties:
-        transactionBytes:
+        linkToSign:
           type: string
     getListedCollectionNFTsRequest:
       type: object
