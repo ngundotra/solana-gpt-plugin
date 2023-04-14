@@ -198,7 +198,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/getListedCollectionNFTsRespsonse"
+                $ref: "#/components/schemas/getListedCollectionNFTsResponse"
         "500":
           description: Validation Error
           content:
@@ -681,7 +681,7 @@ components:
     createBuyTransactionResponse:
       type: object
       properties:
-        transactionBytes:
+        linkToSign:
           type: string
     getListedCollectionNFTsRequest:
       type: object
