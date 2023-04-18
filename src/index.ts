@@ -294,18 +294,11 @@ async function hyperspaceCreateBuyTx(
   };
 }
 
-/**
- * Create QR code image
- */
-app.get("/qr/createBuyNFT", async (req, res) => {
-  console.log("QR code hit");
-  const { buyer, token, price } = req.query;
-  const encoded = encode({
-    buyer: buyer as string,
-    token: token as string,
-    price: price as string,
-  });
-  let uri = new URL(`${SELF_URL}/sign/createBuyNFT?${encoded}`);
+async function createQRCodePng(
+  methodName: string,
+  encoded: string
+): Promise<Buffer> {
+  let uri = new URL(`${SELF_URL}/sign/${methodName}?${encoded}`);
   let solanaPayUrl = encodeURL({
     link: uri,
   });
@@ -313,7 +306,7 @@ app.get("/qr/createBuyNFT", async (req, res) => {
   let dataUrl = await qrcode.toDataURL(solanaPayUrl.toString());
   const base64Data = dataUrl.replace(/^data:image\/png;base64,/, "");
   const imageBuffer = Buffer.from(base64Data, "base64");
-  let buffer = await sharp(imageBuffer)
+  return await sharp(imageBuffer)
     .extend({
       extendWith: "background",
       background: "#ffffff",
@@ -321,40 +314,92 @@ app.get("/qr/createBuyNFT", async (req, res) => {
       right: 110,
     })
     .toBuffer();
-  res.status(200).send(buffer);
-});
+}
+
+function createOpenGraphMetaPage(
+  methodName: string,
+  encoded: string,
+  description: string
+): string {
+  let qrCodeUri = new URL(`${SELF_URL}/qr/${methodName}?${encoded}`);
+  return `<html>
+    <meta property="og:title" content="${description}" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="${SELF_URL}/page/${methodName}?${encoded}" />
+    <meta property="og:image" content="${qrCodeUri}" />
+    </html>`;
+}
 
 /**
  * Create QR code image
  */
-app.get("/page/createBuyNFT", async (req, res) => {
-  console.log("Page hit");
-  const { buyer, token, price } = req.query;
-  const encoded = encode({
-    buyer: buyer as string,
-    token: token as string,
-    price: price as string,
-  });
-  let uri = new URL(`${SELF_URL}/qr/createBuyNFT?${encoded}`);
-  res.status(200).send(`<html>
-    <meta property="og:title" content="Sign to Buy NFT" />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="${SELF_URL}/page/createBuyNFT?${encoded}" />
-    <meta property="og:image" content="${uri}" />
-    </html>`);
+app.get("/qr/:methodName", async (req, res) => {
+  console.log("QR code requested: ", req.params.methodName, req.body);
+
+  if (req.params.methodName === "createBuyNFT") {
+    const { buyer, token, price } = req.query;
+    const encoded = encode({
+      buyer: buyer as string,
+      token: token as string,
+      price: price as string,
+    });
+    let buffer = await createQRCodePng("createBuyNFT", encoded);
+    res.status(200).send(buffer);
+  } else {
+    res
+      .status(404)
+      .send({ error: `Invalid method name ${req.params.methodName}` });
+  }
+});
+
+/**
+ * Create QR code image preview, by using the OpenGraph meta tags
+ */
+app.get("/page/:methodName", async (req, res) => {
+  console.log(
+    "OpenGraph metapage requested: ",
+    req.params.methodName,
+    req.body
+  );
+
+  if (req.params.methodName === "createBuyNFT") {
+    const { buyer, token, price } = req.query;
+    const encoded = encode({
+      buyer: buyer as string,
+      token: token as string,
+      price: price as string,
+    });
+    res
+      .status(200)
+      .send(
+        createOpenGraphMetaPage("createBuyNFT", encoded, "Sign to Buy NFT")
+      );
+  } else {
+    res
+      .status(404)
+      .send({ error: `Invalid method name ${req.params.methodName}` });
+  }
 });
 
 /**
  * Solana pay compliant request
  */
-app.get("/sign/createBuyNFT", async (req, res) => {
-  const { buyer, token, price } = req.query;
-  const result = await hyperspaceCreateBuyTx(
-    buyer as string,
-    token as string,
-    Number.parseFloat(price as string)
-  );
-  return res.status(200).send(JSON.stringify(result));
+app.get("/sign/:methodName", async (req, res) => {
+  console.log("Tx requested: ", req.params.methodName, req.body);
+
+  if (req.params.methodName === "createBuyNFT") {
+    const { buyer, token, price } = req.query;
+    const result = await hyperspaceCreateBuyTx(
+      buyer as string,
+      token as string,
+      Number.parseFloat(price as string)
+    );
+    return res.status(200).send(JSON.stringify(result));
+  } else {
+    res
+      .status(404)
+      .send({ error: `Invalid method name ${req.params.methodName}` });
+  }
 });
 
 app.post("/:methodName", async (req, res) => {
@@ -418,6 +463,20 @@ app.post("/:methodName", async (req, res) => {
       // so that SolanaPay QR Code shows up to buy transaction
       res.status(200).send({
         linkToSign: `${SELF_URL}/page/createBuyNFT?${encoded}`,
+      });
+    } else if (req.params.methodName === "createTransferTransaction") {
+      let { sender, mintOrProgram, recipient, amount } = req.body;
+      const encoded = encode({
+        sender: sender as string,
+        mintOrProgram: mintOrProgram as string,
+        recipient: recipient as string,
+        amount: amount as string,
+      });
+
+      // Create an OpenGraph (https://ogp.me/) rich link preview
+      // so that SolanaPay QR Code shows up to buy transaction
+      res.status(200).send({
+        linkToSign: `${SELF_URL}/page/createTransferNFT?${encoded}`,
       });
     } else if (req.params.methodName === "getListedCollectionNFTs") {
       const { projectId, pageNumber, priceOrder } = req.body;
