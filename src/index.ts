@@ -221,7 +221,7 @@ async function hyperspaceGetListedCollectionNFTs(
   }
 
   return {
-    listings: listedNFTs,
+    listings: listedNFTs.slice(0, pageSize),
     hasMore,
   };
 }
@@ -240,7 +240,7 @@ type CollectionStats = {
 async function hyperspaceGetCollectionsByFloorPrice(
   maxFloorPrice: number | undefined,
   minFloorPrice: number | undefined,
-  pageSize: number = 10,
+  pageSize: number = 5,
   orderBy: string = "DESC",
   humanReadableSlugs: boolean = false
 ) {
@@ -299,7 +299,7 @@ async function hyperspaceGetCollectionsByFloorPrice(
   }
 
   return {
-    projects: results,
+    projects: results.slice(0, pageSize),
     hasMore: hasMore,
   };
 }

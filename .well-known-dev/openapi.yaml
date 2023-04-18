@@ -637,9 +637,6 @@ components:
         minFloorPrice:
           type: number
           nullable: true
-        pageNumber:
-          type: number
-          nullable: true
         orderBy:
           type: string
           enum:
@@ -688,9 +685,6 @@ components:
       properties:
         projectId:
           type: string
-        pageNumber:
-          type: number
-          nullable: true
         priceOrder:
           type: string
           nullable: true
@@ -705,14 +699,14 @@ components:
           items: { $ref: "#/components/schemas/ListedNFT" }
         hasMore:
           type: boolean
-        currentPage:
-          type: number
     ListedNFT:
       type: object
       properties:
         price:
           type: number
         token:
+          type: string
+        image:
           type: string
         marketplace:
           type: string
