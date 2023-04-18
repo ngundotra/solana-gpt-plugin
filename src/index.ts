@@ -160,111 +160,147 @@ async function getAccountInfo(accountAddress: PublicKey): Promise<Object> {
   return accountInfo || {};
 }
 
+type NFTListing = {
+  price: number;
+  image: string;
+  token: string;
+};
+
 type ListedNFTResponse = {
-  listings: {
-    price: number;
-    token: string;
-  }[];
-  currentPage: number;
+  listings: NFTListing[];
   hasMore: boolean;
 };
 
 async function hyperspaceGetListedCollectionNFTs(
   projectId: string,
-  pageNumber: number = 1,
+  pageSize: number = 5,
   priceOrder: string = "DESC"
 ): Promise<ListedNFTResponse> {
-  let results = await hyperSpaceClient.getMarketplaceSnapshot({
-    condition: {
-      projects: [{ project_id: projectId }],
-      onlyListings: true,
-    },
-    orderBy: {
-      field_name: "lowest_listing_price",
-      sort_order: priceOrder as any,
-    },
-    paginationInfo: {
-      page_number: pageNumber,
-    },
-  });
-
-  let snaps = results.getMarketPlaceSnapshots.market_place_snapshots!;
-  let orderedListings = snaps.sort(
-    (a, b) => a.lowest_listing_mpa!.price! - b.lowest_listing_mpa!.price!
-  );
-
-  let crucialInfo = orderedListings
-    .filter(
-      (arr) =>
-        // We filter out Magic Eden's marketplace because they
-        // require an API key to make purchases programmatically
-        arr.lowest_listing_mpa?.marketplace_program_id !==
-        "M2mx93ekt1fmXSVkTrUL9xVFHkmME8HTUi5Cyc5aF7K"
-    )
-    .map((arr) => {
-      return {
-        price: arr.lowest_listing_mpa!.price!,
-        token: arr.token_address,
-        marketplace: arr.lowest_listing_mpa!.marketplace_program_id!,
-      };
+  let listedNFTs: NFTListing[] = [];
+  let hasMore = true;
+  let pageNumber = 1;
+  while (listedNFTs.length < pageSize && hasMore) {
+    let results = await hyperSpaceClient.getMarketplaceSnapshot({
+      condition: {
+        projects: [{ project_id: projectId }],
+        onlyListings: true,
+      },
+      orderBy: {
+        field_name: "lowest_listing_price",
+        sort_order: priceOrder as any,
+      },
+      paginationInfo: {
+        page_number: pageNumber,
+      },
     });
 
+    let snaps = results.getMarketPlaceSnapshots.market_place_snapshots!;
+    let orderedListings = snaps.sort(
+      (a, b) => a.lowest_listing_mpa!.price! - b.lowest_listing_mpa!.price!
+    );
+
+    pageNumber += 1;
+    let crucialInfo: NFTListing[] = orderedListings
+      .filter(
+        (arr) =>
+          // We filter out Magic Eden's marketplace because they
+          // require an API key to make purchases programmatically
+          arr.lowest_listing_mpa?.marketplace_program_id !==
+          "M2mx93ekt1fmXSVkTrUL9xVFHkmME8HTUi5Cyc5aF7K"
+      )
+      .map((arr) => {
+        return {
+          price: arr.lowest_listing_mpa!.price!,
+          token: arr.token_address,
+          image: arr.meta_data_img ?? "",
+          marketplace: arr.lowest_listing_mpa!.marketplace_program_id!,
+        };
+      });
+    listedNFTs = listedNFTs.concat(crucialInfo);
+    hasMore = results.getMarketPlaceSnapshots.pagination_info.has_next_page;
+  }
+
   return {
-    listings: crucialInfo,
-    currentPage: pageNumber,
-    hasMore: results.getMarketPlaceSnapshots.pagination_info.has_next_page,
+    listings: listedNFTs,
+    hasMore,
   };
 }
 
+type CollectionStats = {
+  id: string;
+  desc: string;
+  img: string;
+  website: string;
+  floor_price: number;
+};
+
+/**
+ * Provides a feed of NFT collections that the user can afford.
+ */
 async function hyperspaceGetCollectionsByFloorPrice(
   maxFloorPrice: number | undefined,
   minFloorPrice: number | undefined,
-  pageNumber: number = 1,
   pageSize: number = 10,
   orderBy: string = "DESC",
   humanReadableSlugs: boolean = false
 ) {
-  let projects = await hyperSpaceClient.getProjects({
-    condition: {
-      floorPriceFilter: {
-        min: minFloorPrice ?? null,
-        max: maxFloorPrice ?? null,
+  let pageNumber = 1;
+  let results: CollectionStats[] = [];
+  let hasMore = true;
+  while (results.length < pageSize && hasMore) {
+    let projects = await hyperSpaceClient.getProjects({
+      condition: {
+        floorPriceFilter: {
+          min: minFloorPrice ?? null,
+          max: maxFloorPrice ?? null,
+        },
       },
-    },
-    orderBy: {
-      field_name: "lowest_listing_price",
-      sort_order: orderBy as any,
-    },
-    paginationInfo: {
-      page_size: pageSize,
-      page_number: pageNumber,
-    },
-  });
-
-  let stats = projects.getProjectStats.project_stats?.map((project) => {
-    return {
-      id: project.project_id,
-      desc: project.project?.display_name,
-      img: project.project?.img_url ?? "",
-      website: project.project?.website ?? "",
-      floor_price: project.floor_price,
-    };
-  });
-  console.log("Stats", stats!.length);
-  if (humanReadableSlugs) {
-    stats = stats?.filter((stat) => {
-      try {
-        bs58.decode(stat.id!);
-        return false;
-      } catch (err) {
-        return true;
-      }
+      orderBy: {
+        field_name: "lowest_listing_price",
+        sort_order: orderBy as any,
+      },
+      paginationInfo: {
+        page_size: 512,
+        page_number: pageNumber,
+      },
     });
+
+    let stats: CollectionStats[] =
+      projects.getProjectStats.project_stats
+        ?.filter((project) => {
+          return (
+            (project.volume_7day ?? 0 > 0) && (project.floor_price ?? 0 > 0)
+          );
+        })
+        .map((project) => {
+          return {
+            id: project.project_id,
+            desc: project.project?.display_name ?? "",
+            img: project.project?.img_url ?? "",
+            website: project.project?.website ?? "",
+            floor_price: project.floor_price ?? 0,
+          };
+        }) ?? [];
+
+    if (humanReadableSlugs) {
+      stats = stats?.filter((stat) => {
+        try {
+          bs58.decode(stat.id!);
+          return false;
+        } catch (err) {
+          return true;
+        }
+      });
+    }
+    pageNumber += 1;
+    console.log("\tFetching collection info... ", stats.length, pageNumber);
+    results = results.concat(stats!);
+    hasMore = projects.getProjectStats.pagination_info.has_next_page;
   }
+
   return {
-    projects: stats,
-    hasMore: projects.getProjectStats.pagination_info.has_next_page,
-    currentPage: pageNumber,
+    projects: results,
+    hasMore: hasMore,
   };
 }
 
@@ -420,26 +456,19 @@ app.post("/:methodName", async (req, res) => {
         linkToSign: `${SELF_URL}/page/createBuyNFT?${encoded}`,
       });
     } else if (req.params.methodName === "getListedCollectionNFTs") {
-      const { projectId, pageNumber, priceOrder } = req.body;
+      const { projectId, pageSize, priceOrder } = req.body;
       const result = await hyperspaceGetListedCollectionNFTs(
         projectId,
-        pageNumber,
+        pageSize,
         priceOrder
       );
       return res.status(200).send(JSON.stringify(result));
     } else if (req.params.methodName === "getCollectionsByFloorPrice") {
-      const {
-        maxFloorPrice,
-        minFloorPrice,
-        orderBy,
-        pageNumber,
-        pageSize,
-        humanReadable,
-      } = req.body;
+      const { maxFloorPrice, minFloorPrice, orderBy, pageSize, humanReadable } =
+        req.body;
       const result = await hyperspaceGetCollectionsByFloorPrice(
         maxFloorPrice,
         minFloorPrice,
-        pageNumber,
         pageSize,
         orderBy,
         humanReadable
