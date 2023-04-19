@@ -232,7 +232,7 @@ async function hyperspaceGetCollectionsByFloorPrice(
       },
     },
     orderBy: {
-      field_name: "lowest_listing_price",
+      field_name: "floor_price",
       sort_order: orderBy as any,
     },
     paginationInfo: {
