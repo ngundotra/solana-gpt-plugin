@@ -25,6 +25,11 @@ import { base64, bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { encode } from "querystring";
 import * as dotenv from "dotenv";
 
+import {
+  createWriteNFTMetadataTx,
+  createCloseNFTMetadataTx,
+} from "./on-chain-metadata/index";
+
 dotenv.config();
 
 const app = express();
@@ -369,20 +374,25 @@ function createOpenGraphMetaPage(
     </html>`;
 }
 
+let TX_DESCRIPTIONS: Record<string, string> = {
+  createBuyNFT: "Sign to Buy NFT",
+  createWriteNFTMetadata: "Sign to Write NFT Metadata",
+  createCloseNFTMetadata: "Sign to Close NFT Metadata",
+};
+
 /**
  * Create QR code image
  */
 app.get("/qr/:methodName", async (req, res) => {
   console.log("QR code requested:", req.params.methodName, req.query);
 
-  if (req.params.methodName === "createBuyNFT") {
-    const { buyer, token, price } = req.query;
-    const encoded = encode({
-      buyer: buyer as string,
-      token: token as string,
-      price: price as string,
-    });
-    let buffer = await createQRCodePng("createBuyNFT", encoded);
+  let description = TX_DESCRIPTIONS[req.params.methodName];
+
+  if (description) {
+    let buffer = await createQRCodePng(
+      req.params.methodName,
+      encode(Object(req.query))
+    );
     res.status(200).send(buffer);
   } else {
     res
@@ -401,17 +411,16 @@ app.get("/page/:methodName", async (req, res) => {
     req.query
   );
 
-  if (req.params.methodName === "createBuyNFT") {
-    const { buyer, token, price } = req.query;
-    const encoded = encode({
-      buyer: buyer as string,
-      token: token as string,
-      price: price as string,
-    });
+  let description = TX_DESCRIPTIONS[req.params.methodName];
+  if (description) {
     res
       .status(200)
       .send(
-        createOpenGraphMetaPage("createBuyNFT", encoded, "Sign to Buy NFT")
+        createOpenGraphMetaPage(
+          req.params.methodName,
+          encode(Object(req.query)),
+          description
+        )
       );
   } else {
     res
@@ -432,6 +441,17 @@ app.get("/sign/:methodName", async (req, res) => {
       buyer as string,
       token as string,
       Number.parseFloat(price as string)
+    );
+    return res.status(200).send(JSON.stringify(result));
+  } else if (req.params.methodName === "createWriteNFTMetadata") {
+    const { image, owner } = req.query;
+    const result = await createWriteNFTMetadataTx(owner as string, { image });
+    return res.status(200).send(JSON.stringify(result));
+  } else if (req.params.methodName === "createCloseNFTMetadata") {
+    const { account, owner } = req.query;
+    const result = await createCloseNFTMetadataTx(
+      owner as string,
+      account as string
     );
     return res.status(200).send(JSON.stringify(result));
   } else {
