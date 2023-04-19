@@ -286,11 +286,13 @@ async function hyperspaceCreateBuyTx(
     buyerBrokerBasisPoints: 0,
   });
   console.log("Transaction Data", transactionData);
+  const txBytes = base64.encode(
+    Buffer.from(transactionData.createBuyTx.stdBuffer!)
+  );
+  console.log("Transaction bytes:", txBytes);
 
   return {
-    transaction: base64.encode(
-      Buffer.from(transactionData.createBuyTx.stdBuffer!)
-    ),
+    transaction: txBytes,
   };
 }
 
@@ -302,6 +304,7 @@ async function createQRCodePng(
   let solanaPayUrl = encodeURL({
     link: uri,
   });
+  console.log("Solana pay url", solanaPayUrl.toString());
 
   let dataUrl = await qrcode.toDataURL(solanaPayUrl.toString());
   const base64Data = dataUrl.replace(/^data:image\/png;base64,/, "");
@@ -334,7 +337,7 @@ function createOpenGraphMetaPage(
  * Create QR code image
  */
 app.get("/qr/:methodName", async (req, res) => {
-  console.log("QR code requested: ", req.params.methodName, req.body);
+  console.log("QR code requested:", req.params.methodName, req.query);
 
   if (req.params.methodName === "createBuyNFT") {
     const { buyer, token, price } = req.query;
@@ -357,9 +360,9 @@ app.get("/qr/:methodName", async (req, res) => {
  */
 app.get("/page/:methodName", async (req, res) => {
   console.log(
-    "OpenGraph metapage requested: ",
+    "OpenGraph metapage requested:",
     req.params.methodName,
-    req.body
+    req.query
   );
 
   if (req.params.methodName === "createBuyNFT") {
