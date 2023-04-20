@@ -522,35 +522,17 @@ app.post("/:methodName", async (req, res) => {
       res.status(200).send({ message: JSON.stringify(assets) });
     }
 
+    // Write methods
+    let description = TX_DESCRIPTIONS[req.params.methodName];
+    if (description) {
+      let encoded = encode(Object(req.body));
+      res.status(200).send({
+        linkToSign: `${SELF_URL}/page/${req.params.methodName}?${encoded}`,
+      });
+    }
+
     // NFT specific methods - using Hyperspace
-    if (req.params.methodName === "createBuyTransaction") {
-      let { buyer, token, price } = req.body;
-      const encoded = encode({
-        buyer: buyer as string,
-        token: token as string,
-        price: price as number,
-      });
-
-      // Create an OpenGraph (https://ogp.me/) rich link preview
-      // so that SolanaPay QR Code shows up to buy transaction
-      res.status(200).send({
-        linkToSign: `${SELF_URL}/page/createBuyNFT?${encoded}`,
-      });
-    } else if (req.params.methodName === "createTransferTransaction") {
-      let { sender, mintOrProgram, recipient, amount } = req.body;
-      const encoded = encode({
-        sender: sender as string,
-        mintOrProgram: mintOrProgram as string,
-        recipient: recipient as string,
-        amount: amount as string,
-      });
-
-      // Create an OpenGraph (https://ogp.me/) rich link preview
-      // so that SolanaPay QR Code shows up to buy transaction
-      res.status(200).send({
-        linkToSign: `${SELF_URL}/page/createTransferNFT?${encoded}`,
-      });
-    } else if (req.params.methodName === "getListedCollectionNFTs") {
+    if (req.params.methodName === "getListedCollectionNFTs") {
       const { projectId, pageSize, priceOrder } = req.body;
       const result = await hyperspaceGetListedCollectionNFTs(
         projectId,

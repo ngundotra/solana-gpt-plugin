@@ -159,7 +159,55 @@ paths:
                 $ref: "#/components/schemas/HTTPValidationError"
       security:
         - HTTPBearer: []
-  /createBuyTransaction:
+  /createCloseNFTMetadata:
+    post:
+      summary: Allows the user to close NFT metadata on-chain and redeem the account's SOL
+      operationId: create_close_nft_metadata_tx
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/createCloseNFTMetadataRequest"
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/transactionResponse"
+        "500":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+      security:
+        - HTTPBearer: []
+  /createWriteNFTMetadata:
+    post:
+      summary: Allows the user to write NFT metadata on-chain
+      operationId: create_write_nft_metadata_tx
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/createWriteNFTMetadataRequest"
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/transactionResponse"
+        "500":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+      security:
+        - HTTPBearer: []
+  /createBuyNFT:
     post:
       summary: Accepts accounts needed to buy the NFT represented by the token
       operationId: create_buy_nft_tx
@@ -174,7 +222,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/createBuyTransactionResponse"
+                $ref: "#/components/schemas/transactionResponse"
         "500":
           description: Validation Error
           content:
@@ -675,7 +723,21 @@ components:
           type: string
         price:
           type: number
-    createBuyTransactionResponse:
+    createWriteNFTMetadataRequest:
+      type: object
+      properties:
+        owner:
+          type: string
+        image:
+          type: string
+    createCloseNFTMetadataRequest:
+      type: object
+      properties:
+        owner:
+          type: string
+        account:
+          type: string
+    transactionResponse:
       type: object
       properties:
         linkToSign:
