@@ -9,6 +9,28 @@ type SolanaPayTx = {
   message?: string;
 };
 
+/**
+ * Need this to fake a wallet with only a publicKey for the anchor provider
+ */
+class FakeWallet {
+  publicKey: anchor.web3.PublicKey;
+  constructor(publicKey: anchor.web3.PublicKey) {
+    this.publicKey = publicKey;
+  }
+
+  async signTransaction<
+    T extends anchor.web3.Transaction | anchor.web3.VersionedTransaction
+  >(tx: T): Promise<T> {
+    return tx;
+  }
+
+  async signAllTransactions<
+    T extends anchor.web3.Transaction | anchor.web3.VersionedTransaction
+  >(txs: T[]): Promise<T[]> {
+    return txs;
+  }
+}
+
 export async function createWriteNFTMetadataTx(
   owner: string,
   metadata: Object
@@ -16,9 +38,8 @@ export async function createWriteNFTMetadataTx(
   const program = await anchor.Program.at(
     process.env.ON_CHAIN_METADATA_PROGRAM as string,
     new anchor.AnchorProvider(
-      //   new anchor.web3.Connection(process.env.CONNECTION_URL as string),
       connection,
-      new anchor.Wallet(anchor.web3.Keypair.generate()),
+      new FakeWallet(new anchor.web3.PublicKey(owner)),
       {}
     )
   );
