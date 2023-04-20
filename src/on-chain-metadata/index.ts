@@ -1,6 +1,9 @@
 import * as anchor from "@coral-xyz/anchor";
 import { base64 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
+const SOLANA_RPC_URL = "https://api.mainnet-beta.solana.com";
+const connection = new anchor.web3.Connection(SOLANA_RPC_URL);
+
 type SolanaPayTx = {
   transaction: string;
   message?: string;
@@ -13,7 +16,8 @@ export async function createWriteNFTMetadataTx(
   const program = await anchor.Program.at(
     process.env.ON_CHAIN_METADATA_PROGRAM as string,
     new anchor.AnchorProvider(
-      new anchor.web3.Connection(process.env.CONNECTION_URL as string),
+      //   new anchor.web3.Connection(process.env.CONNECTION_URL as string),
+      connection,
       new anchor.Wallet(anchor.web3.Keypair.generate()),
       {}
     )
@@ -55,10 +59,12 @@ export async function createWriteNFTMetadataTx(
 
   let tx = new anchor.web3.Transaction();
   tx = tx.add(initIx).add(writeIx).add(validateIx);
+  tx.recentBlockhash = (await connection.getRecentBlockhash()).blockhash;
+  tx.feePayer = new anchor.web3.PublicKey(owner);
   tx.partialSign(metadataKp);
 
   return {
-    transaction: base64.encode(tx.serialize()),
+    transaction: base64.encode(tx.serializeMessage()),
   };
 }
 
