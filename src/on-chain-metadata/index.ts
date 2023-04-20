@@ -96,8 +96,8 @@ export async function createCloseNFTMetadataTx(
   const program = await anchor.Program.at(
     process.env.ON_CHAIN_METADATA_PROGRAM as string,
     new anchor.AnchorProvider(
-      new anchor.web3.Connection(process.env.CONNECTION_URL as string),
-      new anchor.Wallet(anchor.web3.Keypair.generate()),
+      connection,
+      new FakeWallet(new anchor.web3.PublicKey(owner)),
       {}
     )
   );
@@ -111,7 +111,10 @@ export async function createCloseNFTMetadataTx(
     })
     .transaction();
 
+  tx.recentBlockhash = (await connection.getRecentBlockhash()).blockhash;
+  tx.feePayer = new anchor.web3.PublicKey(owner);
+
   return {
-    transaction: base64.encode(tx.serialize()),
+    transaction: base64.encode(tx.serialize({ requireAllSignatures: false })),
   };
 }
