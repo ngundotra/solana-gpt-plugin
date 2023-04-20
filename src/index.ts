@@ -435,6 +435,7 @@ app.get("/page/:methodName", async (req, res) => {
 app.get("/sign/:methodName", async (req, res) => {
   console.log("Tx requested: ", req.params.methodName, req.body);
 
+  let description = TX_DESCRIPTIONS[req.params.methodName];
   if (req.params.methodName === "createBuyNFT") {
     const { buyer, token, price } = req.query;
     const result = await hyperspaceCreateBuyTx(
@@ -446,14 +447,26 @@ app.get("/sign/:methodName", async (req, res) => {
   } else if (req.params.methodName === "createWriteNFTMetadata") {
     const { image, owner } = req.query;
     const result = await createWriteNFTMetadataTx(owner as string, { image });
-    return res.status(200).send(JSON.stringify(result));
+    return res.status(200).send(
+      JSON.stringify({
+        transaction: result.transaction,
+        message: description,
+        network: "mainnet-beta",
+      })
+    );
   } else if (req.params.methodName === "createCloseNFTMetadata") {
     const { account, owner } = req.query;
     const result = await createCloseNFTMetadataTx(
       owner as string,
       account as string
     );
-    return res.status(200).send(JSON.stringify(result));
+    return res.status(200).send(
+      JSON.stringify({
+        transaction: result.transaction,
+        message: description,
+        network: "mainnet-beta",
+      })
+    );
   } else {
     res
       .status(404)
