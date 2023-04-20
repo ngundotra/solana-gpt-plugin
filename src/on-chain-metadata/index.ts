@@ -64,7 +64,7 @@ export async function createWriteNFTMetadataTx(
   tx.partialSign(metadataKp);
 
   return {
-    transaction: base64.encode(tx.serializeMessage()),
+    transaction: base64.encode(tx.serialize({ requireAllSignatures: false })),
   };
 }
 
