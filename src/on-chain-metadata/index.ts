@@ -1,4 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
+import NodeWallet from "@coral-xyz/anchor/dist/cjs/nodewallet";
 import { base64 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 const SOLANA_RPC_URL = "https://api.mainnet-beta.solana.com";
@@ -101,7 +102,6 @@ export async function createCloseNFTMetadataTx(
       {}
     )
   );
-
   let tx = await program.methods
     .close()
     .accounts({
