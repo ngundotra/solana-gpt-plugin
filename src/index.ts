@@ -337,6 +337,7 @@ async function hyperspaceCreateBuyTx(
   };
 }
 
+const SOLANA_PAY_LABEL = "Solana GPT Plugin";
 async function createQRCodePng(
   methodName: string,
   encoded: string
@@ -344,6 +345,7 @@ async function createQRCodePng(
   let uri = new URL(`${SELF_URL}/sign/${methodName}?${encoded}`);
   let solanaPayUrl = encodeURL({
     link: uri,
+    label: SOLANA_PAY_LABEL,
   });
   console.log("Solana pay url", solanaPayUrl.toString());
 
@@ -429,10 +431,17 @@ app.get("/page/:methodName", async (req, res) => {
   }
 });
 
+app.get("/sign/:methodName", async (req, res) => {
+  res.status(200).json({
+    label: SOLANA_PAY_LABEL,
+    icon: "https://solanapay.com/src/img/branding/Solanapay.com/downloads/gradient.svg",
+  });
+});
+
 /**
  * Solana pay compliant request
  */
-app.get("/sign/:methodName", async (req, res) => {
+app.post("/sign/:methodName", async (req, res) => {
   console.log("Tx requested: ", req.params.methodName, req.query);
 
   let description = TX_DESCRIPTIONS[req.params.methodName];

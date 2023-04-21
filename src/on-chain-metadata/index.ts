@@ -86,7 +86,9 @@ export async function createWriteNFTMetadataTx(
   tx.partialSign(metadataKp);
 
   return {
-    transaction: base64.encode(tx.serialize({ requireAllSignatures: false })),
+    transaction: tx
+      .serialize({ requireAllSignatures: false })
+      .toString("base64"),
   };
 }
 
@@ -115,6 +117,8 @@ export async function createCloseNFTMetadataTx(
   tx.feePayer = new anchor.web3.PublicKey(owner);
 
   return {
-    transaction: base64.encode(tx.serialize({ requireAllSignatures: false })),
+    transaction: tx
+      .serialize({ requireAllSignatures: false })
+      .toString("base64"),
   };
 }
