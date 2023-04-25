@@ -2,8 +2,6 @@ import express, { Request, Response } from "express";
 import bodyParser from "body-parser";
 import cors from "cors";
 
-import { base64 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-
 import * as dotenv from "dotenv";
 dotenv.config();
 
@@ -17,9 +15,9 @@ import configConstants, {
   APP,
   PORT,
   CONNECTION,
-  HYPERSPACE_CLIENT,
   TX_DESCRIPTIONS,
   SOLANA_PAY_LABEL,
+  TX_HANDLERS,
 } from "./constants";
 configConstants();
 
@@ -32,6 +30,7 @@ import { getCollectionsByFloorPrice } from "./handlers/getCollectionsByFloorPric
 import { makeRedirectToLinkPreview } from "./handlers/solana-pay/redirectToLinkPreview";
 import { makeQrcodeLinkPreview } from "./handlers/solana-pay/qrcodeLinkPreview";
 import { makeCreateQrCode } from "./handlers/solana-pay/createQrCode";
+import { createBuyNFT } from "./handlers/transaction-handlers/createBuyNFT";
 
 APP.use(bodyParser.json());
 APP.use(
@@ -45,86 +44,6 @@ if (process.env.DEV === "true") {
 } else {
   APP.use("/.well-known", express.static("./.well-known"));
 }
-
-type CreateBuyTxResponse = {
-  transaction: string;
-};
-
-async function hyperspaceCreateBuyTx(
-  buyer: string,
-  token: string,
-  price: number
-): Promise<CreateBuyTxResponse> {
-  let transactionData = await HYPERSPACE_CLIENT.createBuyTx({
-    buyerAddress: buyer,
-    tokenAddress: token,
-    price: price,
-    // Take no fee on making tx for ChatGPT users
-    buyerBroker: "",
-    buyerBrokerBasisPoints: 0,
-  });
-  console.log("Transaction Data", transactionData);
-  const txBytes = base64.encode(
-    Buffer.from(transactionData.createBuyTx.stdBuffer!)
-  );
-  console.log("Transaction bytes:", txBytes);
-
-  return {
-    transaction: txBytes,
-  };
-}
-
-/**
- * Solana pay compliant request (POST)
- */
-APP.post("/sign/:methodName", async (req, res) => {
-  console.log("Tx requested: ", req.params.methodName, req.query);
-
-  let description = TX_DESCRIPTIONS[req.params.methodName];
-  if (req.params.methodName === "createBuyNFT") {
-    const { buyer, token, price } = req.query;
-    const result = await hyperspaceCreateBuyTx(
-      buyer as string,
-      token as string,
-      Number.parseFloat(price as string)
-    );
-    return res.status(200).json(result);
-  } else if (req.params.methodName === "createWriteNFTMetadata") {
-    const { image, owner } = req.query;
-    const result = await createWriteNFTMetadataTx(CONNECTION, owner as string, {
-      image,
-    });
-
-    console.log(
-      JSON.stringify({
-        transaction: result.transaction,
-        message: description,
-        network: "mainnet-beta",
-      })
-    );
-    return res.status(200).json({
-      transaction: result.transaction,
-      message: description,
-      network: "mainnet-beta",
-    });
-  } else if (req.params.methodName === "createCloseNFTMetadata") {
-    const { account, owner } = req.query;
-    const result = await createCloseNFTMetadataTx(
-      CONNECTION,
-      owner as string,
-      account as string
-    );
-    return res.status(200).json({
-      transaction: result.transaction,
-      message: description,
-      network: "mainnet-beta",
-    });
-  } else {
-    res
-      .status(404)
-      .send({ error: `Invalid method name ${req.params.methodName}` });
-  }
-});
 
 function errorHandle(
   handler: (
@@ -159,7 +78,7 @@ APP.post(
 );
 
 // Write API
-// - Shows SolanaPay QR code in link previews
+// -> Shows SolanaPay QR code in link previews
 for (const methodName of Object.keys(TX_DESCRIPTIONS)) {
   // Create redirect to link preview
   // This is the only ChatGPT accessible endpoint per tx
@@ -183,10 +102,23 @@ for (const methodName of Object.keys(TX_DESCRIPTIONS)) {
   APP.get(`/qr/${methodName}`, errorHandle(makeCreateQrCode(methodName)));
 
   // SolanaPay Transaction Request server impl
+  // GET - send back store info
   APP.get(`/sign/${methodName}`, async (req, res) => {
     res.status(200).json({
       label: SOLANA_PAY_LABEL,
       icon: "https://solanapay.com/src/img/branding/Solanapay.com/downloads/gradient.svg",
+    });
+  });
+
+  // POST - send back transaction info
+  const txHandler = TX_HANDLERS[methodName];
+  APP.post(`/sign/${methodName}`, async (req, res) => {
+    console.log("Tx requested: ", methodName, req.query);
+
+    let result = await txHandler(req);
+    return res.send(200).json({
+      network: "mainnet-beta",
+      ...result,
     });
   });
 }
