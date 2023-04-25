@@ -21,7 +21,6 @@ const _getAssetsByOwner = async (
   };
   const before = "";
   const after = "";
-  console.log("address", HELIUS_URL);
   const { data } = await axios.post(HELIUS_URL, {
     jsonrpc: "2.0",
     id: "my-id",
