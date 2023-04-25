@@ -23,6 +23,7 @@ import {
   respondToSolanaPayGet,
   makeRespondToSolanaPayPost,
 } from "./handlers/solana-pay/tx-request-server";
+import { getTokenAccounts } from "./handlers/getTokenAccounts";
 
 APP.use(bodyParser.json());
 APP.use(
@@ -57,6 +58,7 @@ function errorHandle(
 APP.post("/getBalance", errorHandle(getBalance));
 APP.post("/getAccountInfo", errorHandle(getAccountInfo));
 APP.post("/getTransaction", errorHandle(getTransaction));
+APP.post("/getTokenAccounts", errorHandle(getTokenAccounts));
 APP.post("/getSignaturesForAddress", errorHandle(getSignaturesForAddress));
 
 // Metaplex ReadAPI (using Helius)
