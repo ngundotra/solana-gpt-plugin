@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import { Request } from "express";
 
 import { base64 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 

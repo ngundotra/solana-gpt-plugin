@@ -5,20 +5,9 @@ import cors from "cors";
 import * as dotenv from "dotenv";
 dotenv.config();
 
-import {
-  createWriteNFTMetadataTx,
-  createCloseNFTMetadataTx,
-} from "./on-chain-metadata/index";
 import { getTransaction } from "./handlers/getTransaction";
 
-import configConstants, {
-  APP,
-  PORT,
-  CONNECTION,
-  TX_DESCRIPTIONS,
-  SOLANA_PAY_LABEL,
-  TX_HANDLERS,
-} from "./constants";
+import configConstants, { APP, PORT, TX_DESCRIPTIONS } from "./constants";
 configConstants();
 
 import { getSignaturesForAddress } from "./handlers/getSignaturesForAddress";
@@ -30,7 +19,6 @@ import { getCollectionsByFloorPrice } from "./handlers/getCollectionsByFloorPric
 import { makeRedirectToLinkPreview } from "./handlers/solana-pay/redirectToLinkPreview";
 import { makeQrcodeLinkPreview } from "./handlers/solana-pay/qrcodeLinkPreview";
 import { makeCreateQrCode } from "./handlers/solana-pay/createQrCode";
-import { createBuyNFT } from "./handlers/transaction-handlers/createBuyNFT";
 import {
   respondToSolanaPayGet,
   makeRespondToSolanaPayPost,
