@@ -5,7 +5,7 @@ import { CONNECTION } from "../../../constants";
 
 export async function createCloseNFTMetadata(req: Request) {
   const { account } = req.query;
-  const { address: owner } = req.body;
+  const { account: owner } = req.body;
   return await createCloseNFTMetadataTx(
     CONNECTION,
     owner as string,
