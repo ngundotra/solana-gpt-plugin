@@ -117,7 +117,10 @@ const getAssetsByOwner = async (
  * @param accountAddress
  * @returns
  */
-async function getAccountInfo(accountAddress: PublicKey): Promise<Object> {
+async function getParsedAccountInfo(
+  connection: Connection,
+  accountAddress: PublicKey
+): Promise<Object> {
   // TODO: copy the explorer code here that manually deserializes a bunch of stuff, like Mango & Pyth
 
   const accountInfo = await connection.getAccountInfo(accountAddress);
@@ -502,7 +505,10 @@ app.post("/:methodName", async (req, res) => {
     // RPC methods
     if (req.params.methodName === "getAccountInfo") {
       const accountAddress = new PublicKey(req.body.address);
-      const accountInfo = await getAccountInfo(accountAddress);
+      const accountInfo = await getParsedAccountInfo(
+        connection,
+        accountAddress
+      );
       res.status(200).send({ message: JSON.stringify(accountInfo) });
     } else if (req.params.methodName === "getBalance") {
       const { address } = req.body;
