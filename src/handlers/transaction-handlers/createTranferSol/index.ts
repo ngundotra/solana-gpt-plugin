@@ -6,6 +6,7 @@ import {
   LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
+import { CONNECTION } from "../../../constants";
 
 export async function createTransferSol(req: Request) {
   const { destination, amount } = req.query;
@@ -16,9 +17,12 @@ export async function createTransferSol(req: Request) {
     SystemProgram.transfer({
       fromPubkey: new PublicKey(sender),
       toPubkey: new PublicKey(destination as string),
-      lamports: new BN(amount as string).toNumber() / LAMPORTS_PER_SOL,
+      lamports: Math.floor(parseFloat(amount as string) * LAMPORTS_PER_SOL),
     })
   );
+  tx.feePayer = new PublicKey(sender);
+  tx.recentBlockhash = (await CONNECTION.getLatestBlockhash()).blockhash;
+
   return {
     transaction: tx
       .serialize({ requireAllSignatures: false })

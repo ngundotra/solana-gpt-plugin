@@ -4,7 +4,7 @@ import {
   createTransferInstruction,
   getAssociatedTokenAddressSync,
 } from "@solana/spl-token";
-import { BN } from "@coral-xyz/anchor";
+import { CONNECTION } from "../../../constants";
 
 export async function createTransferToken(req: Request) {
   const { mint, destination, amount } = req.query;
@@ -25,9 +25,12 @@ export async function createTransferToken(req: Request) {
       sourceToken,
       destinationToken,
       sender,
-      new BN(amount as string).toNumber()
+      Number(amount as string)
     )
   );
+  tx.feePayer = new PublicKey(sender);
+  tx.recentBlockhash = (await CONNECTION.getLatestBlockhash()).blockhash;
+
   return {
     transaction: tx
       .serialize({ requireAllSignatures: false })
