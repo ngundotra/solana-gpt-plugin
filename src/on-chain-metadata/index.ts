@@ -1,9 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
-import NodeWallet from "@coral-xyz/anchor/dist/cjs/nodewallet";
-import { base64 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { Connection } from "@solana/web3.js";
-
-const SOLANA_RPC_URL = "https://api.mainnet-beta.solana.com";
 
 type SolanaPayTx = {
   transaction: string;
@@ -46,7 +42,6 @@ export async function createWriteNFTMetadataTx(
     )
   );
 
-  // await program.methods.createMetadata()
   let metadataBytes = JSON.stringify(metadata);
   console.log(metadataBytes.length);
   if (metadataBytes.length > 500) {
