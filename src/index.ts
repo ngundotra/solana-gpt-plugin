@@ -1,12 +1,8 @@
 import express, { Request, Response } from "express";
 import bodyParser from "body-parser";
 import cors from "cors";
-import { encodeURL } from "@solana/pay";
-import * as qrcode from "qrcode";
-import sharp from "sharp";
 
 import { base64 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { encode } from "querystring";
 
 import * as dotenv from "dotenv";
 dotenv.config();
@@ -21,8 +17,9 @@ import configConstants, {
   APP,
   PORT,
   CONNECTION,
-  SELF_URL,
   HYPERSPACE_CLIENT,
+  TX_DESCRIPTIONS,
+  SOLANA_PAY_LABEL,
 } from "./constants";
 configConstants();
 
@@ -32,6 +29,9 @@ import { getBalance } from "./handlers/getBalance";
 import { getAssetsByOwner } from "./handlers/getAssetsByOwner";
 import { getListedCollectionNFTs } from "./handlers/getListedCollectionNFTs";
 import { getCollectionsByFloorPrice } from "./handlers/getCollectionsByFloorPrice";
+import { makeRedirectToLinkPreview } from "./handlers/solana-pay/redirectToLinkPreview";
+import { makeQrcodeLinkPreview } from "./handlers/solana-pay/qrcodeLinkPreview";
+import { makeCreateQrCode } from "./handlers/solana-pay/createQrCode";
 
 APP.use(bodyParser.json());
 APP.use(
@@ -73,110 +73,6 @@ async function hyperspaceCreateBuyTx(
     transaction: txBytes,
   };
 }
-
-const SOLANA_PAY_LABEL = "Solana GPT Plugin";
-async function createQRCodePng(
-  methodName: string,
-  encoded: string
-): Promise<Buffer> {
-  let uri = new URL(`${SELF_URL}/sign/${methodName}?${encoded}`);
-  let solanaPayUrl = encodeURL({
-    link: uri,
-    label: SOLANA_PAY_LABEL,
-  });
-  console.log("Solana pay url", solanaPayUrl.toString());
-
-  let dataUrl = await qrcode.toDataURL(solanaPayUrl.toString());
-  const base64Data = dataUrl.replace(/^data:image\/png;base64,/, "");
-  const imageBuffer = Buffer.from(base64Data, "base64");
-  return await sharp(imageBuffer)
-    .extend({
-      extendWith: "background",
-      background: "#ffffff",
-      left: 110,
-      right: 110,
-    })
-    .toBuffer();
-}
-
-function createOpenGraphMetaPage(
-  methodName: string,
-  encoded: string,
-  description: string
-): string {
-  let qrCodeUri = new URL(`${SELF_URL}/qr/${methodName}?${encoded}`);
-  return `<html>
-    <meta property="og:title" content="${description}" />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="${SELF_URL}/page/${methodName}?${encoded}" />
-    <meta property="og:image" content="${qrCodeUri}" />
-    </html>`;
-}
-
-let TX_DESCRIPTIONS: Record<string, string> = {
-  createBuyNFT: "Sign to Buy NFT",
-  createWriteNFTMetadata: "Sign to Write NFT Metadata",
-  createCloseNFTMetadata: "Sign to Close NFT Metadata",
-};
-
-/**
- * Create QR code image
- */
-APP.get("/qr/:methodName", async (req, res) => {
-  console.log("QR code requested:", req.params.methodName, req.query);
-
-  let description = TX_DESCRIPTIONS[req.params.methodName];
-
-  if (description) {
-    let buffer = await createQRCodePng(
-      req.params.methodName,
-      encode(Object(req.query))
-    );
-    res.status(200).send(buffer);
-  } else {
-    res
-      .status(404)
-      .send({ error: `Invalid method name ${req.params.methodName}` });
-  }
-});
-
-/**
- * Create QR code image preview, by using the OpenGraph meta tags
- */
-APP.get("/page/:methodName", async (req, res) => {
-  console.log(
-    "OpenGraph metapage requested:",
-    req.params.methodName,
-    req.query
-  );
-
-  let description = TX_DESCRIPTIONS[req.params.methodName];
-  if (description) {
-    res
-      .status(200)
-      .send(
-        createOpenGraphMetaPage(
-          req.params.methodName,
-          encode(Object(req.query)),
-          description
-        )
-      );
-  } else {
-    res
-      .status(404)
-      .send({ error: `Invalid method name ${req.params.methodName}` });
-  }
-});
-
-/**
- * Solana pay compliant request (GET)
- */
-APP.get("/sign/:methodName", async (req, res) => {
-  res.status(200).json({
-    label: SOLANA_PAY_LABEL,
-    icon: "https://solanapay.com/src/img/branding/Solanapay.com/downloads/gradient.svg",
-  });
-});
 
 /**
  * Solana pay compliant request (POST)
@@ -240,7 +136,7 @@ function errorHandle(
     handler(req, res).catch((error) => {
       console.error(error);
 
-      // Prevent ChatGPT from getting access to error messages until we have a better error handling
+      // Prevent ChatGPT from getting access to error messages until we have better error handling
       res.status(500).send({ message: "An error occurred" });
     });
   };
@@ -262,27 +158,38 @@ APP.post(
   errorHandle(getCollectionsByFloorPrice)
 );
 
-APP.post("/:methodName", async (req, res) => {
-  // Inspect what ChatGPT is sending
-  console.log(req.params.methodName, req.body);
+// Write API
+// - Shows SolanaPay QR code in link previews
+for (const methodName of Object.keys(TX_DESCRIPTIONS)) {
+  // Create redirect to link preview
+  // This is the only ChatGPT accessible endpoint per tx
+  APP.post(
+    `/${methodName}`,
+    errorHandle(makeRedirectToLinkPreview(methodName))
+  );
 
-  // Dispatch the request
-  try {
-    // Write methods
-    let description = TX_DESCRIPTIONS[req.params.methodName];
-    if (description) {
-      let encoded = encode(Object(req.body));
-      res.status(200).send({
-        linkToSign: `${SELF_URL}/page/${req.params.methodName}?${encoded}`,
-      });
-    }
-  } catch (error) {
-    console.error(error);
+  // ==================================
+  //        INTERNAL ENDPOINTS
+  // ==================================
 
-    // Prevent ChatGPT from getting access to error messages until we have a better error handling
-    res.status(500).send({ message: "An error occurred" });
-  }
-});
+  // Creates an OpenGraph HTML page with a link to a QR code
+  // so SolanaPay QR Codes can show up in ChatGPT's link previews
+  APP.get(
+    `/page/${methodName}`,
+    errorHandle(makeQrcodeLinkPreview(methodName))
+  );
+
+  // Create QR code image
+  APP.get(`/qr/${methodName}`, errorHandle(makeCreateQrCode(methodName)));
+
+  // SolanaPay Transaction Request server impl
+  APP.get(`/sign/${methodName}`, async (req, res) => {
+    res.status(200).json({
+      label: SOLANA_PAY_LABEL,
+      icon: "https://solanapay.com/src/img/branding/Solanapay.com/downloads/gradient.svg",
+    });
+  });
+}
 
 APP.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
