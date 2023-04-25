@@ -31,6 +31,10 @@ import { makeRedirectToLinkPreview } from "./handlers/solana-pay/redirectToLinkP
 import { makeQrcodeLinkPreview } from "./handlers/solana-pay/qrcodeLinkPreview";
 import { makeCreateQrCode } from "./handlers/solana-pay/createQrCode";
 import { createBuyNFT } from "./handlers/transaction-handlers/createBuyNFT";
+import {
+  respondToSolanaPayGet,
+  makeRespondToSolanaPayPost,
+} from "./handlers/solana-pay/tx-request-server";
 
 APP.use(bodyParser.json());
 APP.use(
@@ -102,25 +106,11 @@ for (const methodName of Object.keys(TX_DESCRIPTIONS)) {
   APP.get(`/qr/${methodName}`, errorHandle(makeCreateQrCode(methodName)));
 
   // SolanaPay Transaction Request server impl
-  // GET - send back store info
-  APP.get(`/sign/${methodName}`, async (req, res) => {
-    res.status(200).json({
-      label: SOLANA_PAY_LABEL,
-      icon: "https://solanapay.com/src/img/branding/Solanapay.com/downloads/gradient.svg",
-    });
-  });
-
-  // POST - send back transaction info
-  const txHandler = TX_HANDLERS[methodName];
-  APP.post(`/sign/${methodName}`, async (req, res) => {
-    console.log("Tx requested: ", methodName, req.query);
-
-    let result = await txHandler(req);
-    return res.send(200).json({
-      network: "mainnet-beta",
-      ...result,
-    });
-  });
+  APP.get(`/sign/${methodName}`, respondToSolanaPayGet);
+  APP.post(
+    `/sign/${methodName}`,
+    errorHandle(makeRespondToSolanaPayPost(methodName))
+  );
 }
 
 APP.listen(PORT, () => {
