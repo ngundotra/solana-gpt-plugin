@@ -233,6 +233,54 @@ paths:
                 $ref: "#/components/schemas/HTTPValidationError"
       security:
         - HTTPBearer: []
+  /createTransferToken:
+    post:
+      summary: Allows the user to transfer a token to ownership of another account
+      operationId: create_transfer_token_tx
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/createTransferTokenRequest"
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/transactionResponse"
+        "500":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+      security:
+        - HTTPBearer: []
+  /createTransferSol:
+    post:
+      summary: Allows the user to transfer Sol to another account
+      operationId: create_transfer_sol_tx
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/createTransferSolRequest"
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/transactionResponse"
+        "500":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+      security:
+        - HTTPBearer: []
   /createBuyNFT:
     post:
       summary: Accepts accounts needed to buy the NFT represented by the token
@@ -765,6 +813,22 @@ components:
       type: object
       properties:
         account:
+          type: string
+    createTransferTokenRequest:
+      type: object
+      properties:
+        amount:
+          type: string
+        destination:
+          type: string
+        mint:
+          type: string
+    createTransferSolRequest:
+      type: object
+      properties:
+        amount:
+          type: string
+        destination:
           type: string
     transactionResponse:
       type: object

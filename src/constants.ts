@@ -5,6 +5,8 @@ import { createBuyNFT } from "./handlers/transaction-handlers/createBuyNFT";
 import { TransactionHandler } from "./handlers/transaction-handlers";
 import { createWriteNFTMetadata } from "./handlers/transaction-handlers/createWriteNFTMetadata";
 import { createCloseNFTMetadata } from "./handlers/transaction-handlers/createCloseNFTMetadata";
+import { createTransferToken } from "./handlers/transaction-handlers/createTransferToken";
+import { createTransferSol } from "./handlers/transaction-handlers/createTranferSol";
 
 export const APP = express();
 export const PORT = process.env.PORT || 3333;
@@ -24,11 +26,15 @@ export const TX_DESCRIPTIONS: Record<TransactionEndpoints, string> = {
   createBuyNFT: "Sign to Buy NFT",
   createWriteNFTMetadata: "Sign to Write NFT Metadata",
   createCloseNFTMetadata: "Sign to Close NFT Metadata",
+  createTransferToken: "Sign to Transfer Token",
+  createTransferSol: "Sign to Transfer Sol",
 };
 export const TX_HANDLERS: Record<TransactionEndpoints, TransactionHandler> = {
   createBuyNFT: createBuyNFT,
   createWriteNFTMetadata: createWriteNFTMetadata,
   createCloseNFTMetadata: createCloseNFTMetadata,
+  createTransferToken: createTransferToken,
+  createTransferSol: createTransferSol,
 };
 
 // Inferred Constants
