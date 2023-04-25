@@ -58,6 +58,32 @@ paths:
                 $ref: "#/components/schemas/HTTPValidationError"
       security:
         - HTTPBearer: []
+  /getTokenAccounts:
+    post:
+      summary: getTokenAccounts
+      description: Returns the fungible and non-fungible tokens and amounts owned by the address. May show tokens not listed in /getAssetsByOwner
+      operationId: query_token_accounts
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/getBalanceRequest"
+        required: true
+      responses:
+        "200":
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/getTokenAccountsResponse"
+        "500":
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HTTPValidationError"
+      security:
+        - HTTPBearer: []
   /getBalance:
     post:
       summary: getBalance
@@ -361,6 +387,15 @@ components:
         sol:
           title: sol
           type: number
+    getTokenAccountsResponse:
+      type: array
+      items:
+        type: object
+        properties:
+          mint:
+            type: string
+          amount:
+            type: string
     HTTPValidationError:
       title: HTTPValidationError
       type: object
