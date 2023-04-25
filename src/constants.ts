@@ -14,10 +14,12 @@ export const CONNECTION = new Connection(SOLANA_RPC_URL);
 
 // Internal Solana Pay constants
 export const SOLANA_PAY_LABEL = "Solana GPT Plugin";
-export type TransactionEndpoints =
-  | "createBuyNFT"
-  | "createWriteNFTMetadata"
-  | "createCloseNFTMetadata";
+export const TRANSACTION_ENDPOINTS = [
+  "createBuyNFT",
+  "createWriteNFTMetadata",
+  "createCloseNFTMetadata",
+];
+export type TransactionEndpoints = (typeof TRANSACTION_ENDPOINTS)[number];
 export const TX_DESCRIPTIONS: Record<TransactionEndpoints, string> = {
   createBuyNFT: "Sign to Buy NFT",
   createWriteNFTMetadata: "Sign to Write NFT Metadata",

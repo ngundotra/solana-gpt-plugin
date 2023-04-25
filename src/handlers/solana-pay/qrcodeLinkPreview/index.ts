@@ -1,7 +1,11 @@
 import { Request, Response } from "express";
 import { encode } from "querystring";
 
-import { SELF_URL, TX_DESCRIPTIONS } from "../../../constants";
+import {
+  SELF_URL,
+  TX_DESCRIPTIONS,
+  TransactionEndpoints,
+} from "../../../constants";
 
 function createOpenGraphMetaPage(
   methodName: string,
@@ -17,23 +21,19 @@ function createOpenGraphMetaPage(
     </html>`;
 }
 
-export function makeQrcodeLinkPreview(methodName: string) {
+export function makeQrcodeLinkPreview(methodName: TransactionEndpoints) {
   return async (req: Request, res: Response) => {
     console.log("OpenGraph metapage requested:", methodName, req.query);
 
     let description = TX_DESCRIPTIONS[methodName];
-    if (description) {
-      res
-        .status(200)
-        .send(
-          createOpenGraphMetaPage(
-            methodName,
-            encode(Object(req.query)),
-            description
-          )
-        );
-    } else {
-      res.status(404).send({ error: `Invalid method name ${methodName}` });
-    }
+    res
+      .status(200)
+      .send(
+        createOpenGraphMetaPage(
+          methodName,
+          encode(Object(req.query)),
+          description
+        )
+      );
   };
 }

@@ -9,6 +9,7 @@ import {
   SELF_URL,
   SOLANA_PAY_LABEL,
   TX_DESCRIPTIONS,
+  TransactionEndpoints,
 } from "../../../constants";
 
 async function createQRCodePng(
@@ -35,19 +36,11 @@ async function createQRCodePng(
     .toBuffer();
 }
 
-export function makeCreateQrCode(methodName: string) {
+export function makeCreateQrCode(methodName: TransactionEndpoints) {
   return async (req: Request, res: Response) => {
     console.log("QR code requested:", methodName, req.query);
 
-    let description = TX_DESCRIPTIONS[methodName];
-
-    if (description) {
-      let buffer = await createQRCodePng(methodName, encode(Object(req.query)));
-      res.status(200).send(buffer);
-    } else {
-      res
-        .status(404)
-        .send({ error: `Invalid method name ${req.params.methodName}` });
-    }
+    let buffer = await createQRCodePng(methodName, encode(Object(req.query)));
+    res.status(200).send(buffer);
   };
 }
