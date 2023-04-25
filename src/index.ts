@@ -68,7 +68,7 @@ if (process.env.DEV === "true") {
  * @param obj
  * @returns
  */
-function replaceBNWithToString(obj: any): any {
+function stringifyAnchorObject(obj: any): any {
   if (obj instanceof BN) {
     return obj.toString();
   } else if (obj instanceof PublicKey) {
@@ -77,7 +77,7 @@ function replaceBNWithToString(obj: any): any {
 
   if (typeof obj === "object" && obj !== null) {
     return Object.keys(obj).reduce((acc: Record<string, any>, key: string) => {
-      acc[key] = replaceBNWithToString(obj[key]);
+      acc[key] = stringifyAnchorObject(obj[key]);
       return acc;
     }, {});
   }
@@ -145,7 +145,7 @@ async function getAccountInfo(accountAddress: PublicKey): Promise<Object> {
         const accountDef = accountDefTmp;
 
         // Decode the anchor data & stringify the data
-        const decodedAccountData = replaceBNWithToString(
+        const decodedAccountData = stringifyAnchorObject(
           coder.decode(accountDef.name, rawData)
         );
 
@@ -431,6 +431,9 @@ app.get("/page/:methodName", async (req, res) => {
   }
 });
 
+/**
+ * Solana pay compliant request (GET)
+ */
 app.get("/sign/:methodName", async (req, res) => {
   res.status(200).json({
     label: SOLANA_PAY_LABEL,
@@ -439,7 +442,7 @@ app.get("/sign/:methodName", async (req, res) => {
 });
 
 /**
- * Solana pay compliant request
+ * Solana pay compliant request (POST)
  */
 app.post("/sign/:methodName", async (req, res) => {
   console.log("Tx requested: ", req.params.methodName, req.query);
@@ -455,7 +458,9 @@ app.post("/sign/:methodName", async (req, res) => {
     return res.status(200).json(result);
   } else if (req.params.methodName === "createWriteNFTMetadata") {
     const { image, owner } = req.query;
-    const result = await createWriteNFTMetadataTx(owner as string, { image });
+    const result = await createWriteNFTMetadataTx(connection, owner as string, {
+      image,
+    });
 
     console.log(
       JSON.stringify({
@@ -472,6 +477,7 @@ app.post("/sign/:methodName", async (req, res) => {
   } else if (req.params.methodName === "createCloseNFTMetadata") {
     const { account, owner } = req.query;
     const result = await createCloseNFTMetadataTx(
+      connection,
       owner as string,
       account as string
     );

@@ -1,9 +1,9 @@
 import * as anchor from "@coral-xyz/anchor";
 import NodeWallet from "@coral-xyz/anchor/dist/cjs/nodewallet";
 import { base64 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { Connection } from "@solana/web3.js";
 
 const SOLANA_RPC_URL = "https://api.mainnet-beta.solana.com";
-const connection = new anchor.web3.Connection(SOLANA_RPC_URL);
 
 type SolanaPayTx = {
   transaction: string;
@@ -33,6 +33,7 @@ class FakeWallet {
 }
 
 export async function createWriteNFTMetadataTx(
+  connection: Connection,
   owner: string,
   metadata: Object
 ): Promise<SolanaPayTx> {
@@ -93,6 +94,7 @@ export async function createWriteNFTMetadataTx(
 }
 
 export async function createCloseNFTMetadataTx(
+  connection: Connection,
   owner: string,
   account: string
 ): Promise<SolanaPayTx> {
