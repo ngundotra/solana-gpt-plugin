@@ -1,5 +1,6 @@
 import express from "express";
 import { Connection } from "@solana/web3.js";
+import { HyperspaceClient } from "hyperspace-client-js";
 
 export const APP = express();
 export const PORT = process.env.PORT || 3333;
@@ -9,6 +10,7 @@ export const CONNECTION = new Connection(SOLANA_RPC_URL);
 
 export let HELIUS_URL: string;
 export let SELF_URL: string;
+export let HYPERSPACE_CLIENT: HyperspaceClient;
 
 export default function index() {
   HELIUS_URL = `https://rpc.helius.xyz/?api-key=${process.env.HELIUS_API_KEY}`;
@@ -17,4 +19,8 @@ export default function index() {
   } else {
     SELF_URL = "https://solana-gpt-plugin.onrender.com";
   }
+
+  HYPERSPACE_CLIENT = new HyperspaceClient(
+    process.env.HYPERSPACE_API_KEY as string
+  );
 }

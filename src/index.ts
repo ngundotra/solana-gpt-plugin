@@ -1,12 +1,11 @@
 import express, { Request, Response } from "express";
 import bodyParser from "body-parser";
 import cors from "cors";
-import { HyperspaceClient } from "hyperspace-client-js";
 import { encodeURL } from "@solana/pay";
 import * as qrcode from "qrcode";
 import sharp from "sharp";
 
-import { base64, bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { base64 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { encode } from "querystring";
 
 import * as dotenv from "dotenv";
@@ -18,17 +17,21 @@ import {
 } from "./on-chain-metadata/index";
 import { getTransaction } from "./handlers/getTransaction";
 
-import configConstants, { APP, PORT, CONNECTION, SELF_URL } from "./constants";
+import configConstants, {
+  APP,
+  PORT,
+  CONNECTION,
+  SELF_URL,
+  HYPERSPACE_CLIENT,
+} from "./constants";
 configConstants();
 
 import { getSignaturesForAddress } from "./handlers/getSignaturesForAddress";
 import { getAccountInfo } from "./handlers/getAccountInfo";
 import { getBalance } from "./handlers/getBalance";
 import { getAssetsByOwner } from "./handlers/getAssetsByOwner";
-
-const hyperSpaceClient = new HyperspaceClient(
-  process.env.HYPERSPACE_API_KEY as string
-);
+import { getListedCollectionNFTs } from "./handlers/getListedCollectionNFTs";
+import { getCollectionsByFloorPrice } from "./handlers/getCollectionsByFloorPrice";
 
 APP.use(bodyParser.json());
 APP.use(
@@ -43,150 +46,6 @@ if (process.env.DEV === "true") {
   APP.use("/.well-known", express.static("./.well-known"));
 }
 
-type NFTListing = {
-  price: number;
-  image: string;
-  token: string;
-};
-
-type ListedNFTResponse = {
-  listings: NFTListing[];
-  hasMore: boolean;
-};
-
-async function hyperspaceGetListedCollectionNFTs(
-  projectId: string,
-  pageSize: number = 5,
-  priceOrder: string = "DESC"
-): Promise<ListedNFTResponse> {
-  let listedNFTs: NFTListing[] = [];
-  let hasMore = true;
-  let pageNumber = 1;
-  while (listedNFTs.length < pageSize && hasMore) {
-    let results = await hyperSpaceClient.getMarketplaceSnapshot({
-      condition: {
-        projects: [{ project_id: projectId }],
-        onlyListings: true,
-      },
-      orderBy: {
-        field_name: "lowest_listing_price",
-        sort_order: priceOrder as any,
-      },
-      paginationInfo: {
-        page_number: pageNumber,
-      },
-    });
-
-    let snaps = results.getMarketPlaceSnapshots.market_place_snapshots!;
-    let orderedListings = snaps.sort(
-      (a, b) => a.lowest_listing_mpa!.price! - b.lowest_listing_mpa!.price!
-    );
-
-    pageNumber += 1;
-    let crucialInfo: NFTListing[] = orderedListings
-      .filter(
-        (arr) =>
-          // We filter out Magic Eden's marketplace because they
-          // require an API key to make purchases programmatically
-          arr.lowest_listing_mpa?.marketplace_program_id !==
-          "M2mx93ekt1fmXSVkTrUL9xVFHkmME8HTUi5Cyc5aF7K"
-      )
-      .map((arr) => {
-        return {
-          price: arr.lowest_listing_mpa!.price!,
-          token: arr.token_address,
-          image: arr.meta_data_img ?? "",
-          marketplace: arr.lowest_listing_mpa!.marketplace_program_id!,
-        };
-      });
-    listedNFTs = listedNFTs.concat(crucialInfo);
-    hasMore = results.getMarketPlaceSnapshots.pagination_info.has_next_page;
-  }
-
-  return {
-    listings: listedNFTs.slice(0, pageSize),
-    hasMore,
-  };
-}
-
-type CollectionStats = {
-  id: string;
-  desc: string;
-  img: string;
-  website: string;
-  floor_price: number;
-};
-
-/**
- * Provides a feed of NFT collections that the user can afford.
- */
-async function hyperspaceGetCollectionsByFloorPrice(
-  maxFloorPrice: number | undefined,
-  minFloorPrice: number | undefined,
-  pageSize: number = 5,
-  orderBy: string = "DESC",
-  humanReadableSlugs: boolean = false
-) {
-  let pageNumber = 1;
-  let results: CollectionStats[] = [];
-  let hasMore = true;
-  while (results.length < pageSize && hasMore) {
-    let projects = await hyperSpaceClient.getProjects({
-      condition: {
-        floorPriceFilter: {
-          min: minFloorPrice ?? null,
-          max: maxFloorPrice ?? null,
-        },
-      },
-      orderBy: {
-        field_name: "floor_price",
-        sort_order: orderBy as any,
-      },
-      paginationInfo: {
-        page_size: 512,
-        page_number: pageNumber,
-      },
-    });
-
-    let stats: CollectionStats[] =
-      projects.getProjectStats.project_stats
-        ?.filter((project) => {
-          return (
-            (project.volume_7day ?? 0 > 0) && (project.floor_price ?? 0 > 0)
-          );
-        })
-        .map((project) => {
-          return {
-            id: project.project_id,
-            desc: project.project?.display_name ?? "",
-            img: project.project?.img_url ?? "",
-            website: project.project?.website ?? "",
-            floor_price: project.floor_price ?? 0,
-          };
-        }) ?? [];
-
-    if (humanReadableSlugs) {
-      stats = stats?.filter((stat) => {
-        try {
-          bs58.decode(stat.id!);
-          return false;
-        } catch (err) {
-          return true;
-        }
-      });
-    }
-    pageNumber += 1;
-    console.log("\tFetching collection info... ", stats.length, pageNumber);
-    results = results.concat(stats!);
-    hasMore = projects.getProjectStats.pagination_info.has_next_page;
-  }
-
-  return {
-    projects: results.slice(0, pageSize),
-    hasMore: hasMore,
-  };
-}
-
 type CreateBuyTxResponse = {
   transaction: string;
 };
@@ -196,7 +55,7 @@ async function hyperspaceCreateBuyTx(
   token: string,
   price: number
 ): Promise<CreateBuyTxResponse> {
-  let transactionData = await hyperSpaceClient.createBuyTx({
+  let transactionData = await HYPERSPACE_CLIENT.createBuyTx({
     buyerAddress: buyer,
     tokenAddress: token,
     price: price,
@@ -387,12 +246,21 @@ function errorHandle(
   };
 }
 
+// Solana RPC
 APP.post("/getBalance", errorHandle(getBalance));
 APP.post("/getAccountInfo", errorHandle(getAccountInfo));
 APP.post("/getTransaction", errorHandle(getTransaction));
 APP.post("/getSignaturesForAddress", errorHandle(getSignaturesForAddress));
 
+// Metaplex ReadAPI (using Helius)
 APP.post("/getAssetsByOwner", errorHandle(getAssetsByOwner));
+
+// NFT Listings (using Hyperspace)
+APP.post("/getListedCollectionNFTs", errorHandle(getListedCollectionNFTs));
+APP.post(
+  "/getCollectionsByFloorPrice",
+  errorHandle(getCollectionsByFloorPrice)
+);
 
 APP.post("/:methodName", async (req, res) => {
   // Inspect what ChatGPT is sending
@@ -400,12 +268,6 @@ APP.post("/:methodName", async (req, res) => {
 
   // Dispatch the request
   try {
-    // RPC methods
-
-    // Metaplex ReadAPI methods
-    if (req.params.methodName === "getAssetsByOwner") {
-    }
-
     // Write methods
     let description = TX_DESCRIPTIONS[req.params.methodName];
     if (description) {
@@ -413,28 +275,6 @@ APP.post("/:methodName", async (req, res) => {
       res.status(200).send({
         linkToSign: `${SELF_URL}/page/${req.params.methodName}?${encoded}`,
       });
-    }
-
-    // NFT specific methods - using Hyperspace
-    if (req.params.methodName === "getListedCollectionNFTs") {
-      const { projectId, pageSize, priceOrder } = req.body;
-      const result = await hyperspaceGetListedCollectionNFTs(
-        projectId,
-        pageSize,
-        priceOrder
-      );
-      return res.status(200).send(JSON.stringify(result));
-    } else if (req.params.methodName === "getCollectionsByFloorPrice") {
-      const { maxFloorPrice, minFloorPrice, orderBy, pageSize, humanReadable } =
-        req.body;
-      const result = await hyperspaceGetCollectionsByFloorPrice(
-        maxFloorPrice,
-        minFloorPrice,
-        pageSize,
-        orderBy,
-        humanReadable
-      );
-      return res.status(200).send(JSON.stringify(result));
     }
   } catch (error) {
     console.error(error);
