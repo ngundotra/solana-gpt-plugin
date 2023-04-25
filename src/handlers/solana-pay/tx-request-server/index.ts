@@ -17,9 +17,6 @@ export function makeRespondToSolanaPayPost(methodName: TransactionEndpoints) {
     console.log("Tx requested: ", methodName, req.query);
 
     let result = await TX_HANDLERS[methodName](req);
-    res.status(200).json({
-      network: "mainnet-beta",
-      ...result,
-    });
+    res.status(200).json(result);
   };
 }
