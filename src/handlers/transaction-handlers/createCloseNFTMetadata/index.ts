@@ -4,7 +4,8 @@ import { createCloseNFTMetadataTx } from "../../../on-chain-metadata";
 import { CONNECTION } from "../../../constants";
 
 export async function createCloseNFTMetadata(req: Request) {
-  const { account, owner } = req.query;
+  const { account } = req.query;
+  const { address: owner } = req.body;
   return await createCloseNFTMetadataTx(
     CONNECTION,
     owner as string,

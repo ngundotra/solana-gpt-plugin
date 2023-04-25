@@ -752,8 +752,6 @@ components:
     createBuyTransactionRequest:
       type: object
       properties:
-        buyer:
-          type: string
         token:
           type: string
         price:
@@ -761,15 +759,11 @@ components:
     createWriteNFTMetadataRequest:
       type: object
       properties:
-        owner:
-          type: string
         image:
           type: string
     createCloseNFTMetadataRequest:
       type: object
       properties:
-        owner:
-          type: string
         account:
           type: string
     transactionResponse:

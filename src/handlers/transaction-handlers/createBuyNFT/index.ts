@@ -29,7 +29,8 @@ async function hyperspaceCreateBuyTx(
 }
 
 export async function createBuyNFT(req: Request) {
-  const { buyer, token, price } = req.query;
+  const { token, price } = req.query;
+  const { address: buyer } = req.body;
   return await hyperspaceCreateBuyTx(
     buyer as string,
     token as string,
